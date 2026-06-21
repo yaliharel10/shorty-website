@@ -62,29 +62,23 @@ After deploying, use `https://your-domain.com/admin`.
 
 ## Host online for free (Render)
 
-Shorty uses **SQLite**, so Vercel is not a good fit (no persistent disk). **Render** free tier works and includes a 1 GB persistent disk for the database.
+**Repo:** [github.com/yaliharel10/shorty-website](https://github.com/yaliharel10/shorty-website)
 
-1. Push this project to GitHub (if not already).
-2. Create a free account at [render.com](https://render.com).
-3. **New → Blueprint** (or Web Service) and connect your repo.
-4. Render picks up `render.yaml` automatically, or set manually:
-   - **Build:** `npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run db:seed && npm run build`
-   - **Start:** `npm start`
-   - **DATABASE_URL:** `file:/var/data/shorty.db`
-   - **JWT_SECRET:** generate a long random string
+1. Sign up at [render.com](https://render.com) (GitHub login works).
+2. **New → Blueprint** → connect **`yaliharel10/shorty-website`**.
+3. Render reads `render.yaml` automatically. Confirm env vars:
+   - **DATABASE_URL:** `file:./prisma/render.db`
+   - **JWT_SECRET:** auto-generated (or set your own)
    - **NEXT_PUBLIC_SITE_URL:** your Render URL (e.g. `https://shorty.onrender.com`)
-5. Add a **persistent disk** mounted at `/var/data` (1 GB) in Render service settings.
-6. Deploy — demo accounts are created on first build via `db:seed`.
+4. Deploy.
 
-Free tier notes: the app sleeps after ~15 min idle; first visit after sleep takes ~30–50 seconds to wake up.
+**Free tier notes:**
+- **No persistent disk** on Render free — do not add a disk in settings.
+- Demo accounts are **re-created on every deploy** (build runs `db:seed`).
+- New user signups work at runtime but may be **lost on redeploy** or container restart.
+- App **sleeps after ~15 min idle**; first visit after sleep takes ~30–50s.
 
-### Re-seed demo accounts on Render
-
-In the Render shell for your service:
-
-```bash
-npm run db:seed
-```
+For permanent data storage, upgrade to a paid Render plan with a disk, or switch to PostgreSQL (Neon/Supabase free tier).
 
 ## Production build
 

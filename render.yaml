@@ -1,8 +1,11 @@
 # Free hosting on Render (https://render.com)
-# Connect your GitHub repo → New Web Service → Render reads this file automatically.
+# New → Blueprint → connect yaliharel10/shorty-website
 #
-# Note: Free tier spins down after inactivity (~50s cold start).
-# SQLite persists on the attached disk below.
+# Free tier: no persistent disk — SQLite lives in the container filesystem.
+# Demo data is re-seeded on every deploy (build runs db:seed).
+# User signups persist until the next deploy or cold restart.
+#
+# Free tier also spins down after ~15 min idle (~30–50s cold start).
 
 services:
   - type: web
@@ -15,12 +18,8 @@ services:
       - key: NODE_VERSION
         value: "20"
       - key: DATABASE_URL
-        value: file:/var/data/shorty.db
+        value: file:./prisma/render.db
       - key: JWT_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
-    disk:
-      name: shorty-data
-      mountPath: /var/data
-      sizeGB: 1
