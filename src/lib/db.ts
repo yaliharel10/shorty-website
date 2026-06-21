@@ -4,8 +4,8 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
 function createPrismaClient() {
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
-  const tursoToken = process.env.TURSO_AUTH_TOKEN;
+  const tursoUrl = process.env.TURSO_DATABASE_URL?.trim();
+  const tursoToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
   if (tursoUrl && tursoToken) {
     const adapter = new PrismaLibSql({
@@ -18,12 +18,6 @@ function createPrismaClient() {
     });
   }
 
-  if (process.env.VERCEL === "1") {
-    throw new Error(
-      "TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set in Vercel environment variables"
-    );
-  }
-
   return new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
@@ -31,3 +25,9 @@ function createPrismaClient() {
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 globalForPrisma.prisma = prisma;
+
+export function isTursoConfigured() {
+  return Boolean(
+    process.env.TURSO_DATABASE_URL?.trim() && process.env.TURSO_AUTH_TOKEN?.trim()
+  );
+}

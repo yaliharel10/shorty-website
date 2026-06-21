@@ -8,8 +8,18 @@ export function isSlowHost() {
   return process.env.NEXT_PUBLIC_SLOW_HOST === "true";
 }
 
+/** Initial auth check on page load — keep short so the UI appears quickly. */
+export function authCheckTimeoutMs() {
+  return isSlowHost() ? 30000 : 8000;
+}
+
+/** Login / register submit. */
+export function loginTimeoutMs() {
+  return isSlowHost() ? 90000 : 20000;
+}
+
 export function defaultFetchTimeoutMs() {
-  return isSlowHost() ? 90000 : 30000;
+  return loginTimeoutMs();
 }
 
 export function defaultMaxAttempts() {

@@ -7,7 +7,7 @@ import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
 import { fetchJson } from "@/lib/utils";
-import { defaultFetchTimeoutMs } from "@/lib/hosting";
+import { loginTimeoutMs } from "@/lib/hosting";
 import type { User } from "@/types";
 
 type AuthModalProps = {
@@ -72,7 +72,7 @@ export function AuthModal({
               : { action: "register", username: identifier, email, password }
           ),
         },
-        defaultFetchTimeoutMs()
+        loginTimeoutMs()
       );
 
       if (!res.ok) {

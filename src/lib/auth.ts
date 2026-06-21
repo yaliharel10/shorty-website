@@ -1,10 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
-import {
-  touchUserSession,
-  validateUserSession,
-} from "@/lib/sessions";
 
 function getJwtSecretKey() {
   const secret = process.env.JWT_SECRET;
@@ -63,19 +59,10 @@ export async function createToken(user: SessionUser, sessionId?: string) {
     .sign(getJwtSecretKey());
 }
 
+/** Verify JWT only — no DB round-trip (fast for login and page loads). */
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecretKey());
-    const sessionId = (payload.sessionId as string) || null;
-
-    if (!(await validateUserSession(sessionId))) {
-      return null;
-    }
-
-    if (sessionId) {
-      await touchUserSession(sessionId);
-    }
-
     return {
       id: payload.id as string,
       username: payload.username as string,
@@ -89,7 +76,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       trialEndsAt: (payload.trialEndsAt as string) || null,
       hasStreamingAccess: Boolean(payload.hasStreamingAccess),
       accessLabel: (payload.accessLabel as string) || "No active plan",
-      sessionId,
+      sessionId: (payload.sessionId as string) || null,
     };
   } catch {
     return null;
