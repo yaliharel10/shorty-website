@@ -260,6 +260,7 @@ async function main() {
   await prisma.filmCredit.deleteMany();
   await prisma.person.deleteMany();
   await prisma.film.deleteMany();
+  await prisma.userSession.deleteMany();
   await prisma.user.deleteMany();
 
   const hash = (pw: string) => bcrypt.hash(pw, 12);

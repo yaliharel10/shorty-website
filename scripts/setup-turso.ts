@@ -1,6 +1,18 @@
 import { execSync } from "node:child_process";
 import { createClient } from "@libsql/client";
 
+function parseSqlStatements(sql: string): string[] {
+  const withoutComments = sql
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n");
+
+  return withoutComments
+    .split(";")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 async function main() {
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
@@ -16,12 +28,12 @@ async function main() {
     { encoding: "utf-8" }
   );
 
-  const client = createClient({ url, authToken });
+  const statements = parseSqlStatements(sql);
+  if (statements.length === 0) {
+    throw new Error("No SQL statements generated — cannot set up Turso schema");
+  }
 
-  const statements = sql
-    .split(/;\s*\n/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("--"));
+  const client = createClient({ url, authToken });
 
   console.log(`Applying ${statements.length} statements to Turso...`);
 
@@ -37,7 +49,7 @@ async function main() {
       ) {
         continue;
       }
-      console.error("Failed statement:", statement.slice(0, 120));
+      console.error("Failed statement:", statement.slice(0, 200));
       throw error;
     }
   }
