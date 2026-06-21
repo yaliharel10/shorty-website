@@ -13,9 +13,15 @@ export async function issueAuthResponse(
   body: Record<string, unknown> = {}
 ) {
   const publicUser = toPublicUser(user);
-  const tokenId = await createUserSession(user.id, request);
-  const token = await createToken(publicUser, tokenId);
+  let tokenId: string | undefined;
 
+  try {
+    tokenId = await createUserSession(user.id, request);
+  } catch (error) {
+    console.error("Session tracking failed (login continues):", error);
+  }
+
+  const token = await createToken(publicUser, tokenId);
   const response = NextResponse.json({ user: publicUser, ...body });
   response.cookies.set(sessionCookieOptions(token));
   return response;
@@ -28,10 +34,14 @@ export async function reissueAuthResponse(
   body: Record<string, unknown> = {}
 ) {
   const publicUser = toPublicUser(user);
-  let activeTokenId = tokenId;
+  let activeTokenId = tokenId ?? undefined;
 
   if (!activeTokenId) {
-    activeTokenId = await createUserSession(user.id, request);
+    try {
+      activeTokenId = await createUserSession(user.id, request);
+    } catch (error) {
+      console.error("Session tracking failed:", error);
+    }
   }
 
   const token = await createToken(publicUser, activeTokenId);

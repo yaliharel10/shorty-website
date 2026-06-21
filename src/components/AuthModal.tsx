@@ -6,7 +6,8 @@ import { useAuth } from "./AuthProvider";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
-import { fetchJsonWithRetry } from "@/lib/server-wake";
+import { fetchJson } from "@/lib/utils";
+import { defaultFetchTimeoutMs } from "@/lib/hosting";
 import type { User } from "@/types";
 
 type AuthModalProps = {
@@ -60,7 +61,7 @@ export function AuthModal({
     }
 
     try {
-      const { res, data } = await fetchJsonWithRetry<AuthResponse>(
+      const { res, data } = await fetchJson<AuthResponse>(
         "/api/auth",
         {
           method: "POST",
@@ -71,9 +72,7 @@ export function AuthModal({
               : { action: "register", username: identifier, email, password }
           ),
         },
-        {
-          onProgress: setLoadingHint,
-        }
+        defaultFetchTimeoutMs()
       );
 
       if (!res.ok) {
@@ -89,9 +88,7 @@ export function AuthModal({
       onClose();
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError(
-          "Server is still waking up. Please wait a few seconds — it should connect automatically on the next try."
-        );
+        setError("Request timed out. Check /api/health — Turso env vars may be missing on Vercel.");
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
