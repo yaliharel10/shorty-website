@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import type { User } from "@/types";
+import { fetchJsonWithRetry } from "@/lib/server-wake";
 
 type AuthContextType = {
   user: User | null;
@@ -31,8 +32,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
-      const data = await res.json();
+      const { data } = await fetchJsonWithRetry<{ user: User | null }>(
+        "/api/auth/me",
+        { credentials: "same-origin" },
+        { maxAttempts: 3, timeoutMs: 90000 }
+      );
       setUser(data.user);
     } catch {
       setUser(null);

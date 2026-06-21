@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { apiError, handleApiError } from "@/lib/api-utils";
 import { getSiteUrl, getStripe, isStripeConfigured } from "@/lib/stripe";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     if (!isStripeConfigured()) {
       return apiError("Stripe is not configured", 503);
@@ -26,10 +26,16 @@ export async function POST() {
       return apiError("No billing account found — subscribe first", 400);
     }
 
+    const body = await request.json().catch(() => ({}));
+    const returnPath =
+      typeof body.returnUrl === "string" && body.returnUrl.startsWith("/")
+        ? body.returnUrl
+        : "/subscription";
+
     const stripe = getStripe();
     const portal = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: `${getSiteUrl()}/subscription`,
+      return_url: `${getSiteUrl()}${returnPath}`,
     });
 
     return NextResponse.json({ url: portal.url });

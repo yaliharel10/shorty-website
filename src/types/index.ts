@@ -56,6 +56,7 @@ export type Film = {
 export type User = {
   id: string;
   username: string;
+  displayName: string | null;
   email: string;
   role: string;
   photoUrl: string | null;

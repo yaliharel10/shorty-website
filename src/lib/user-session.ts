@@ -5,6 +5,7 @@ import { getAccessLabel, hasStreamingAccess } from "@/lib/subscription";
 export const userSessionSelect = {
   id: true,
   username: true,
+  displayName: true,
   email: true,
   role: true,
   photoUrl: true,
@@ -20,6 +21,7 @@ export function toSessionUser(user: DbUserSession): SessionUser {
   return {
     id: user.id,
     username: user.username,
+    displayName: user.displayName,
     email: user.email,
     role: user.role,
     photoUrl: user.photoUrl,

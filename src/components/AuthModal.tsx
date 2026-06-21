@@ -6,7 +6,7 @@ import { useAuth } from "./AuthProvider";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
-import { fetchJson } from "@/lib/utils";
+import { fetchJsonWithRetry } from "@/lib/server-wake";
 import type { User } from "@/types";
 
 type AuthModalProps = {
@@ -46,10 +46,6 @@ export function AuthModal({
     setLoading(true);
     setLoadingHint("Signing in...");
 
-    const slowHint = setTimeout(() => {
-      setLoadingHint("Server is waking up — free hosting can take up to a minute...");
-    }, 4000);
-
     const form = new FormData(e.currentTarget);
     const identifier = (form.get("identifier") as string).trim();
     const email = (form.get("email") as string).trim();
@@ -60,20 +56,25 @@ export function AuthModal({
       setError("Passwords do not match");
       setLoading(false);
       setLoadingHint("");
-      clearTimeout(slowHint);
       return;
     }
 
     try {
-      const { res, data } = await fetchJson<AuthResponse>("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isLogin
-            ? { action: "login", identifier, password }
-            : { action: "register", username: identifier, email, password }
-        ),
-      });
+      const { res, data } = await fetchJsonWithRetry<AuthResponse>(
+        "/api/auth",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            isLogin
+              ? { action: "login", identifier, password }
+              : { action: "register", username: identifier, email, password }
+          ),
+        },
+        {
+          onProgress: setLoadingHint,
+        }
+      );
 
       if (!res.ok) {
         throw new Error(data.error || "Authentication failed");
@@ -89,13 +90,12 @@ export function AuthModal({
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setError(
-          "Request timed out. The server may still be waking up — wait a moment and try again."
+          "Server is still waking up. Please wait a few seconds — it should connect automatically on the next try."
         );
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
     } finally {
-      clearTimeout(slowHint);
       setLoading(false);
       setLoadingHint("");
     }

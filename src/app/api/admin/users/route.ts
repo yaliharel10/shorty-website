@@ -11,6 +11,7 @@ import { adminUserUpdateSchema } from "@/lib/validation";
 const userListSelect = {
   id: true,
   username: true,
+  displayName: true,
   email: true,
   photoUrl: true,
   role: true,

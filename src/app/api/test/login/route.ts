@@ -3,13 +3,13 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
-  createToken,
   clearSessionCookieOptions,
   getSession,
-  sessionCookieOptions,
 } from "@/lib/auth";
+import { issueAuthResponse } from "@/lib/auth-response";
 import { apiError, handleApiError } from "@/lib/api-utils";
-import { toPublicUser, userSessionSelect } from "@/lib/user-session";
+import { revokeUserSession } from "@/lib/sessions";
+import { userSessionSelect } from "@/lib/user-session";
 
 const ALLOWED = new Set([
   "admin",
@@ -57,15 +57,9 @@ export async function POST(request: Request) {
       return apiError("Test user not found — run db:seed", 404);
     }
 
-    const publicUser = toPublicUser(user);
-    const token = await createToken(publicUser);
-
-    const response = NextResponse.json({
-      user: publicUser,
+    return issueAuthResponse(user, request, {
       redirect: user.role === "admin" ? "/admin" : "/browse",
     });
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
   } catch (error) {
     return handleApiError(error, "Test login failed");
   }
@@ -77,8 +71,8 @@ export async function DELETE() {
       return apiError("Test login is disabled", 403);
     }
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ ok: true });
+    if (session?.sessionId) {
+      await revokeUserSession(session.sessionId);
     }
     const response = NextResponse.json({ ok: true });
     response.cookies.set(clearSessionCookieOptions());

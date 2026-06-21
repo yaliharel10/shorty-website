@@ -3,14 +3,16 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import {
-  createToken,
   getSession,
   hashPassword,
-  sessionCookieOptions,
   verifyPassword,
 } from "@/lib/auth";
+import { reissueAuthResponse } from "@/lib/auth-response";
 import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
-import { changePasswordSchema } from "@/lib/validation";
+import {
+  changeEmailSchema,
+  changePasswordSchema,
+} from "@/lib/validation";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
 
 export async function GET() {
@@ -24,6 +26,8 @@ export async function GET() {
       where: { id: session.id },
       select: {
         ...userSessionSelect,
+        stripeCustomerId: true,
+        stripeSubscriptionId: true,
         createdAt: true,
         updatedAt: true,
         _count: { select: { favorites: true, ratings: true, views: true } },
@@ -34,11 +38,20 @@ export async function GET() {
       return apiError("User not found", 404);
     }
 
-    const { _count, ...profile } = user;
+    const {
+      _count,
+      stripeCustomerId,
+      stripeSubscriptionId,
+      createdAt,
+      updatedAt,
+      ...profile
+    } = user;
     return NextResponse.json({
       user: toPublicUser(profile),
       stats: _count,
-      memberSince: user.createdAt,
+      memberSince: createdAt,
+      hasBillingAccount: Boolean(stripeCustomerId),
+      hasStripeSubscription: Boolean(stripeSubscriptionId),
     });
   } catch (error) {
     return handleApiError(error, "Failed to load account");
@@ -46,7 +59,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const limited = enforceRateLimit(request, "change-password", 5, 15 * 60 * 1000);
+  const limited = enforceRateLimit(request, "account-update", 10, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {
@@ -55,9 +68,40 @@ export async function PATCH(request: Request) {
       return apiError("Unauthorized", 401);
     }
 
-    const { currentPassword, newPassword } = changePasswordSchema.parse(
-      await request.json()
-    );
+    const body = await request.json();
+
+    if (body.email !== undefined) {
+      const { email, currentPassword } = changeEmailSchema.parse(body);
+
+      const user = await prisma.user.findUnique({
+        where: { id: session.id },
+        select: { id: true, password: true, email: true },
+      });
+
+      if (!user || !(await verifyPassword(currentPassword, user.password))) {
+        return apiError("Current password is incorrect", 400);
+      }
+
+      const normalized = email.toLowerCase();
+      if (normalized !== user.email) {
+        const taken = await prisma.user.findUnique({ where: { email: normalized } });
+        if (taken) {
+          return apiError("Email is already in use", 400);
+        }
+      }
+
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: { email: normalized },
+        select: userSessionSelect,
+      });
+
+      return reissueAuthResponse(updated, request, session.sessionId, {
+        message: "Email updated successfully",
+      });
+    }
+
+    const { currentPassword, newPassword } = changePasswordSchema.parse(body);
 
     const user = await prisma.user.findUnique({
       where: { id: session.id },
@@ -82,15 +126,10 @@ export async function PATCH(request: Request) {
       return apiError("User not found", 404);
     }
 
-    const publicUser = toPublicUser(updated);
-    const token = await createToken(publicUser);
-    const response = NextResponse.json({
-      user: publicUser,
+    return reissueAuthResponse(updated, request, session.sessionId, {
       message: "Password updated successfully",
     });
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
   } catch (error) {
-    return handleApiError(error, "Password update failed");
+    return handleApiError(error, "Account update failed");
   }
 }

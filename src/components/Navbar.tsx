@@ -160,7 +160,12 @@ export function Navbar({
                     />
                     <div className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl border border-[#333] bg-[#111] shadow-xl animate-fade-in">
                       <div className="border-b border-[#222] px-4 py-3">
-                        <p className="text-sm font-medium">{user.username}</p>
+                        <p className="text-sm font-medium">
+                          {user.displayName || user.username}
+                        </p>
+                        {user.displayName && (
+                          <p className="text-xs text-[#666]">@{user.username}</p>
+                        )}
                         <p className="truncate text-xs text-[#666]">{user.email}</p>
                       </div>
                       <button

@@ -2,16 +2,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  createToken,
-  hashPassword,
-  sessionCookieOptions,
-  verifyPassword,
-} from "@/lib/auth";
+import { hashPassword, verifyPassword } from "@/lib/auth";
+import { issueAuthResponse } from "@/lib/auth-response";
 import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
 import { TRIAL_DAYS } from "@/lib/subscription";
 import { loginSchema, registerSchema } from "@/lib/validation";
-import { toPublicUser, userSessionSelect } from "@/lib/user-session";
+import { userSessionSelect } from "@/lib/user-session";
 
 export async function POST(request: Request) {
   const limited = enforceRateLimit(request, "auth", 10, 15 * 60 * 1000);
@@ -45,12 +41,7 @@ export async function POST(request: Request) {
         select: userSessionSelect,
       });
 
-      const publicUser = toPublicUser(user);
-      const token = await createToken(publicUser);
-
-      const response = NextResponse.json({ user: publicUser });
-      response.cookies.set(sessionCookieOptions(token));
-      return response;
+      return issueAuthResponse(user, request);
     }
 
     if (action === "login") {
@@ -70,12 +61,7 @@ export async function POST(request: Request) {
       }
 
       const { password: _, ...sessionFields } = user;
-      const publicUser = toPublicUser(sessionFields);
-      const token = await createToken(publicUser);
-
-      const response = NextResponse.json({ user: publicUser });
-      response.cookies.set(sessionCookieOptions(token));
-      return response;
+      return issueAuthResponse(sessionFields, request);
     }
 
     return apiError("Invalid action", 400);

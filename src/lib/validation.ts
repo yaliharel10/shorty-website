@@ -31,7 +31,24 @@ export const loginSchema = z.object({
 
 export const profileUpdateSchema = z.object({
   username: usernameSchema.optional(),
+  displayName: z
+    .string()
+    .max(50, "Display name must be at most 50 characters")
+    .optional()
+    .or(z.literal("")),
   photoUrl: z.string().url("Invalid image URL").optional().or(z.literal("")),
+});
+
+export const changeEmailSchema = z.object({
+  email: emailSchema,
+  currentPassword: z.string().min(1, "Current password is required"),
+});
+
+export const deleteAccountSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  confirm: z.literal("DELETE", {
+    errorMap: () => ({ message: 'Type DELETE to confirm' }),
+  }),
 });
 
 export const forgotPasswordSchema = z.object({

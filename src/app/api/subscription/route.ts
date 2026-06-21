@@ -2,11 +2,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  createToken,
-  getSession,
-  sessionCookieOptions,
-} from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { reissueAuthResponse } from "@/lib/auth-response";
 import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
 import { getPlan } from "@/lib/subscription";
 import { subscribeSchema } from "@/lib/validation";
@@ -38,21 +35,16 @@ export async function POST(request: Request) {
     }
 
     const user = await activateDemoSubscription(session.id, planId);
-    const publicUser = toPublicUser(user);
-    const token = await createToken(publicUser);
 
-    const response = NextResponse.json({
-      user: publicUser,
+    return reissueAuthResponse(user, request, session.sessionId, {
       message: `Subscribed to ${plan.name} — $${plan.price.toFixed(2)}/month (demo mode)`,
     });
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
   } catch (error) {
     return handleApiError(error, "Subscription failed");
   }
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -73,15 +65,11 @@ export async function DELETE() {
         data: { subscriptionStatus: "canceled" },
         select: userSessionSelect,
       });
-      const publicUser = toPublicUser(updated);
-      const token = await createToken(publicUser);
-      const response = NextResponse.json({
-        user: publicUser,
+
+      return reissueAuthResponse(updated, request, session.sessionId, {
         message:
           "Subscription will cancel at end of billing period. Manage billing anytime.",
       });
-      response.cookies.set(sessionCookieOptions(token));
-      return response;
     }
 
     const updated = await prisma.user.update({
@@ -90,16 +78,10 @@ export async function DELETE() {
       select: userSessionSelect,
     });
 
-    const publicUser = toPublicUser(updated);
-    const token = await createToken(publicUser);
-
-    const response = NextResponse.json({
-      user: publicUser,
+    return reissueAuthResponse(updated, request, session.sessionId, {
       message:
         "Subscription canceled — access continues until the end of your billing period",
     });
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
   } catch (error) {
     return handleApiError(error, "Cancel failed");
   }

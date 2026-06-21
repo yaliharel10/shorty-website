@@ -1,6 +1,10 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import {
+  touchUserSession,
+  validateUserSession,
+} from "@/lib/sessions";
 
 function getJwtSecretKey() {
   const secret = process.env.JWT_SECRET;
@@ -15,6 +19,7 @@ export const COOKIE_NAME = "shorty_session";
 export type SessionUser = {
   id: string;
   username: string;
+  displayName: string | null;
   email: string;
   role: string;
   photoUrl: string | null;
@@ -24,6 +29,7 @@ export type SessionUser = {
   trialEndsAt: string | null;
   hasStreamingAccess: boolean;
   accessLabel: string;
+  sessionId?: string | null;
 };
 
 export async function hashPassword(password: string) {
@@ -35,10 +41,11 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createToken(user: SessionUser) {
+export async function createToken(user: SessionUser, sessionId?: string) {
   return new SignJWT({
     id: user.id,
     username: user.username,
+    displayName: user.displayName,
     email: user.email,
     role: user.role,
     photoUrl: user.photoUrl,
@@ -48,6 +55,7 @@ export async function createToken(user: SessionUser) {
     trialEndsAt: user.trialEndsAt,
     hasStreamingAccess: user.hasStreamingAccess,
     accessLabel: user.accessLabel,
+    ...(sessionId ? { sessionId } : {}),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -58,9 +66,20 @@ export async function createToken(user: SessionUser) {
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecretKey());
+    const sessionId = (payload.sessionId as string) || null;
+
+    if (!(await validateUserSession(sessionId))) {
+      return null;
+    }
+
+    if (sessionId) {
+      await touchUserSession(sessionId);
+    }
+
     return {
       id: payload.id as string,
       username: payload.username as string,
+      displayName: (payload.displayName as string) || null,
       email: payload.email as string,
       role: payload.role as string,
       photoUrl: (payload.photoUrl as string) || null,
@@ -70,6 +89,7 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       trialEndsAt: (payload.trialEndsAt as string) || null,
       hasStreamingAccess: Boolean(payload.hasStreamingAccess),
       accessLabel: (payload.accessLabel as string) || "No active plan",
+      sessionId,
     };
   } catch {
     return null;

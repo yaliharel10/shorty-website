@@ -25,13 +25,14 @@ export function ProfileModal({ open, onClose, onSuccess }: ProfileModalProps) {
 
     const form = new FormData(e.currentTarget);
     const username = (form.get("username") as string).trim();
+    const displayName = (form.get("displayName") as string).trim();
     const photoUrl = (form.get("photoUrl") as string).trim();
 
     try {
       const res = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, photoUrl }),
+        body: JSON.stringify({ username, displayName, photoUrl }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Update failed");
@@ -55,6 +56,16 @@ export function ProfileModal({ open, onClose, onSuccess }: ProfileModalProps) {
       size="sm"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <FormField id="profile-display-name" label="Display name" hint="Optional — shown instead of username">
+          <input
+            id="profile-display-name"
+            name="displayName"
+            defaultValue={user.displayName || ""}
+            maxLength={50}
+            placeholder={user.username}
+            className={inputClassName}
+          />
+        </FormField>
         <FormField id="profile-username" label="Username">
           <input
             id="profile-username"

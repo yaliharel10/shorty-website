@@ -6,6 +6,7 @@ import {
   getSubscriptionPeriodEnd,
 } from "@/lib/stripe";
 import type { PlanId } from "@/lib/subscription";
+import { userSessionSelect } from "@/lib/user-session";
 
 export async function syncUserSubscription(
   userId: string,
@@ -84,16 +85,6 @@ export async function activateDemoSubscription(userId: string, planId: PlanId) {
       subscriptionEndsAt,
       trialEndsAt: null,
     },
-    select: {
-      id: true,
-      username: true,
-      email: true,
-      role: true,
-      photoUrl: true,
-      subscriptionTier: true,
-      subscriptionStatus: true,
-      subscriptionEndsAt: true,
-      trialEndsAt: true,
-    },
+    select: userSessionSelect,
   });
 }

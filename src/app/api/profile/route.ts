@@ -2,10 +2,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession, createToken, sessionCookieOptions } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { reissueAuthResponse } from "@/lib/auth-response";
 import { handleApiError } from "@/lib/api-utils";
 import { profileUpdateSchema } from "@/lib/validation";
-import { toPublicUser, userSessionSelect } from "@/lib/user-session";
+import { userSessionSelect } from "@/lib/user-session";
 
 export async function PATCH(request: Request) {
   try {
@@ -29,6 +30,9 @@ export async function PATCH(request: Request) {
       where: { id: session.id },
       data: {
         ...(data.username && { username: data.username }),
+        ...(data.displayName !== undefined && {
+          displayName: data.displayName || null,
+        }),
         ...(data.photoUrl !== undefined && {
           photoUrl: data.photoUrl || null,
         }),
@@ -36,11 +40,7 @@ export async function PATCH(request: Request) {
       select: userSessionSelect,
     });
 
-    const publicUser = toPublicUser(user);
-    const response = NextResponse.json({ user: publicUser });
-    const token = await createToken(publicUser);
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
+    return reissueAuthResponse(user, request, session.sessionId);
   } catch (error) {
     return handleApiError(error, "Update failed");
   }

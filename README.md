@@ -71,9 +71,57 @@ Locally: [http://localhost:3000/admin](http://localhost:3000/admin)
 
 After deploying, use `https://your-domain.com/admin`.
 
-## Host online for free (Render)
+## Host online — instant login (Vercel + Turso) **recommended**
+
+Render’s free tier **sleeps after ~15 min**, so login can take up to a minute while the server wakes. For **normal, instant sign-in**, deploy to **Vercel** with a **Turso** database (both free):
+
+| | Render (free) | Vercel + Turso |
+|--|---------------|----------------|
+| Login speed | 30–60s after sleep | Instant (~1–2s) |
+| Database | Local SQLite (ephemeral) | Turso cloud SQLite (persistent) |
+| Cost | Free | Free |
+
+### 1. Create a Turso database
+
+```bash
+# Install Turso CLI: https://docs.turso.tech/cli/installation
+turso auth login
+turso db create shorty
+turso db show shorty --url          # → TURSO_DATABASE_URL
+turso db tokens create shorty         # → TURSO_AUTH_TOKEN
+```
+
+### 2. Deploy to Vercel
+
+1. Sign up at [vercel.com](https://vercel.com) and import **`yaliharel10/shorty-website`** from GitHub.
+2. **Environment variables** (Production):
+
+| Variable | Value |
+|----------|--------|
+| `TURSO_DATABASE_URL` | `libsql://shorty-….turso.io` |
+| `TURSO_AUTH_TOKEN` | token from step 1 |
+| `JWT_SECRET` | long random string (32+ chars) |
+| `NEXT_PUBLIC_SITE_URL` | your Vercel URL, e.g. `https://shorty.vercel.app` |
+| `ENABLE_TEST_LOGIN` | `true` (optional, for `/test`) |
+| Stripe vars | same as Render section below |
+
+**Do not set** `NEXT_PUBLIC_SLOW_HOST` on Vercel — login stays fast.
+
+3. Deploy. The build runs `prisma db push`, seeds demo accounts, and builds Next.js automatically (`vercel.json`).
+
+4. Update Stripe webhook URL to your new Vercel domain: `https://your-app.vercel.app/api/webhooks/stripe`
+
+### 3. Custom domain (optional)
+
+In Vercel → **Settings → Domains**, add your domain and update `NEXT_PUBLIC_SITE_URL`.
+
+---
+
+## Host online for free (Render) — slower login
 
 **Repo:** [github.com/yaliharel10/shorty-website](https://github.com/yaliharel10/shorty-website)
+
+Use Render only if you’re OK with cold-start delays. For instant login, use **Vercel + Turso** above.
 
 1. Sign up at [render.com](https://render.com) (GitHub login works).
 2. **New → Blueprint** → connect **`yaliharel10/shorty-website`**.
@@ -105,9 +153,12 @@ Copy `.env.example` to `.env`:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | SQLite path (default `file:./dev.db`) |
+| `DATABASE_URL` | Local dev | SQLite path (default `file:./dev.db`) |
+| `TURSO_DATABASE_URL` | Vercel prod | Turso libSQL URL |
+| `TURSO_AUTH_TOKEN` | Vercel prod | Turso auth token |
 | `JWT_SECRET` | **Yes in production** | Long random secret (32+ chars) |
 | `NEXT_PUBLIC_SITE_URL` | Recommended | Public URL for sitemap/metadata and password reset links |
+| `NEXT_PUBLIC_SLOW_HOST` | Render only | Set `true` on Render free tier; omit on Vercel |
 
 ## Subscriptions (Stripe)
 
@@ -188,3 +239,6 @@ Before deploying:
 
 **429 Too many requests**
 → Auth is rate-limited to 10 attempts per 15 minutes per IP.
+
+**Login stuck on “Please wait…” / “Server is waking up…”**
+→ You’re on **Render free tier**, which sleeps after idle time. Redeploy to **Vercel + Turso** (see above) for instant login, or wait ~30–60s and try again.

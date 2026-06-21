@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
+import { ensureServerAwake, fetchJsonWithRetry } from "@/lib/server-wake";
+import type { User } from "@/types";
 
 const DEMO_ACCOUNTS = [
   {
@@ -78,6 +80,12 @@ function TestPageContent() {
   const [health, setHealth] = useState<"loading" | "ok" | "error">("loading");
   const [loggingIn, setLoggingIn] = useState<string | null>(null);
 
+  const checkHealth = useCallback(async () => {
+    setHealth("loading");
+    const awake = await ensureServerAwake();
+    setHealth(awake ? "ok" : "error");
+  }, []);
+
   useEffect(() => {
     setSiteUrl(window.location.origin);
     fetch("/api/test/login")
@@ -88,20 +96,25 @@ function TestPageContent() {
       })
       .catch(() => {});
 
-    fetch("/api/health")
-      .then((r) => (r.ok ? setHealth("ok") : setHealth("error")))
-      .catch(() => setHealth("error"));
-  }, []);
+    checkHealth();
+  }, [checkHealth]);
 
   const quickLogin = async (username: string, redirect: string) => {
     setLoggingIn(username);
     try {
-      const res = await fetch("/api/test/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username }),
-      });
-      const data = await res.json();
+      const { res, data } = await fetchJsonWithRetry<{
+        user?: User;
+        redirect?: string;
+        error?: string;
+      }>(
+        "/api/test/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username }),
+        },
+        { maxAttempts: 4 }
+      );
       if (!res.ok) throw new Error(data.error || "Login failed");
       if (data.user) setUser(data.user);
       toast(`Signed in as ${username}`, "success");
@@ -165,15 +178,22 @@ function TestPageContent() {
               )}
               <span className="font-medium">
                 {health === "loading"
-                  ? "Checking..."
+                  ? "Waking server..."
                   : health === "ok"
                     ? "Online"
-                    : "Offline or waking up"}
+                    : "Offline"}
               </span>
             </div>
             {health === "error" && (
               <p className="mt-2 text-xs text-[#666]">
-                Free Render tier sleeps after ~15 min. Wait 30–60s and refresh.
+                Could not reach the server after automatic wake-up attempts.{" "}
+                <button
+                  type="button"
+                  onClick={() => checkHealth()}
+                  className="font-bold text-[#ff7a18] hover:underline"
+                >
+                  Try again
+                </button>
               </p>
             )}
           </div>

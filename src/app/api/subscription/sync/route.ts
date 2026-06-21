@@ -2,17 +2,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import {
-  createToken,
-  getSession,
-  sessionCookieOptions,
-} from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { reissueAuthResponse } from "@/lib/auth-response";
 import { apiError, handleApiError } from "@/lib/api-utils";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
 import { syncUserSubscription } from "@/lib/stripe-sync";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const session = await getSession();
     if (!session) {
@@ -30,8 +27,7 @@ export async function POST() {
         select: userSessionSelect,
       });
       if (!fresh) return apiError("User not found", 404);
-      const publicUser = toPublicUser(fresh);
-      return NextResponse.json({ user: publicUser });
+      return NextResponse.json({ user: toPublicUser(fresh) });
     }
 
     const stripe = getStripe();
@@ -46,11 +42,7 @@ export async function POST() {
     });
     if (!updated) return apiError("User not found", 404);
 
-    const publicUser = toPublicUser(updated);
-    const token = await createToken(publicUser);
-    const response = NextResponse.json({ user: publicUser });
-    response.cookies.set(sessionCookieOptions(token));
-    return response;
+    return reissueAuthResponse(updated, request, session.sessionId);
   } catch (error) {
     return handleApiError(error, "Sync failed");
   }
