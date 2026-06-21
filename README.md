@@ -6,7 +6,7 @@ A Netflix-style streaming platform for premium short films. Built with Next.js, 
 
 - **Browse & stream** — Featured hero, category rows, search, full-screen player
 - **People** — Cast & crew profile pages with bios and filmography; search filmmakers, actors, and crew from the navbar or `/browse/people`
-- **Subscriptions** — Three cheap tiers (Basic $1.99, Standard $3.99, Premium $5.99/mo) with 7-day free trial; demo checkout (no real billing)
+- **Subscriptions** — Stripe-powered monthly plans (Basic $1.99, Standard $3.99, Premium $5.99) with 7-day signup trial
 - **Continue watching** — Pick up where you left off (signed-in users)
 - **Accounts** — Register, sign in, edit profile
 - **My List & ratings** — Favorites and 1–10 star ratings
@@ -98,15 +98,36 @@ Copy `.env.example` to `.env`:
 | `JWT_SECRET` | **Yes in production** | Long random secret (32+ chars) |
 | `NEXT_PUBLIC_SITE_URL` | Recommended | Public URL for sitemap/metadata and password reset links |
 
-## Subscriptions
+## Subscriptions (Stripe)
 
-New accounts get a **7-day free trial**. After that, subscribe at `/subscription` (demo billing — no real payment).
+**Live site:** [https://shorty-hhgo.onrender.com](https://shorty-hhgo.onrender.com)
 
-| Plan | Price | Screens |
-|------|-------|---------|
-| Basic | $1.99/mo | 1 |
-| Standard | $3.99/mo | 2 |
-| Premium | $5.99/mo | 4 |
+New accounts get a **7-day free trial** (no card). After that, subscribe at `/subscription` via **Stripe Checkout**.
+
+| Plan | Price |
+|------|-------|
+| Basic | $1.99/mo |
+| Standard | $3.99/mo |
+| Premium | $5.99/mo |
+
+### Enable Stripe on Render
+
+1. Create a free account at [stripe.com](https://stripe.com) (use **Test mode** first).
+2. **Developers → API keys** — copy:
+   - Secret key → `STRIPE_SECRET_KEY`
+   - Publishable key → `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+3. **Developers → Webhooks → Add endpoint**
+   - URL: `https://shorty-hhgo.onrender.com/api/webhooks/stripe`
+   - Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+   - Copy signing secret → `STRIPE_WEBHOOK_SECRET`
+4. **Settings → Billing → Customer portal** — click **Activate** (lets users cancel/update cards).
+5. In Render → **Shorty** → **Environment**, add the three Stripe vars + redeploy.
+
+Without Stripe keys, the app falls back to **demo mode** (instant fake subscribe, local dev only).
+
+### Test card (Stripe test mode)
+
+Use `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Account & password
 

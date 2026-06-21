@@ -87,6 +87,14 @@ export function hasStreamingAccess(user: AccessUser): boolean {
   }
 
   if (
+    user.subscriptionStatus === "past_due" ||
+    user.subscriptionStatus === "unpaid" ||
+    user.subscriptionStatus === "incomplete"
+  ) {
+    return false;
+  }
+
+  if (
     user.subscriptionTier !== "none" &&
     (user.subscriptionStatus === "active" ||
       user.subscriptionStatus === "canceled") &&

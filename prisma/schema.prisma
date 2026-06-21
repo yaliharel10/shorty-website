@@ -14,11 +14,13 @@ model User {
   password           String
   photoUrl           String?
   role               String    @default("user")
-  subscriptionTier   String    @default("none")
-  subscriptionStatus String?
-  subscriptionEndsAt DateTime?
-  trialEndsAt            DateTime?
-  passwordResetToken     String?   @unique
+  subscriptionTier         String    @default("none")
+  subscriptionStatus       String?
+  subscriptionEndsAt       DateTime?
+  trialEndsAt              DateTime?
+  stripeCustomerId         String?   @unique
+  stripeSubscriptionId     String?   @unique
+  passwordResetToken       String?   @unique
   passwordResetExpiresAt DateTime?
   createdAt              DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

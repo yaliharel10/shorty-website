@@ -10,6 +10,8 @@ import {
 import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
 import { getPlan } from "@/lib/subscription";
 import { subscribeSchema } from "@/lib/validation";
+import { isStripeConfigured, getStripe } from "@/lib/stripe";
+import { activateDemoSubscription } from "@/lib/stripe-sync";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
 
 export async function POST(request: Request) {
@@ -28,26 +30,20 @@ export async function POST(request: Request) {
       return apiError("Invalid plan", 400);
     }
 
-    const subscriptionEndsAt = new Date();
-    subscriptionEndsAt.setDate(subscriptionEndsAt.getDate() + 30);
+    if (isStripeConfigured()) {
+      return apiError(
+        "Use Stripe checkout — call POST /api/subscription/checkout instead",
+        400
+      );
+    }
 
-    const user = await prisma.user.update({
-      where: { id: session.id },
-      data: {
-        subscriptionTier: planId,
-        subscriptionStatus: "active",
-        subscriptionEndsAt,
-        trialEndsAt: null,
-      },
-      select: userSessionSelect,
-    });
-
+    const user = await activateDemoSubscription(session.id, planId);
     const publicUser = toPublicUser(user);
     const token = await createToken(publicUser);
 
     const response = NextResponse.json({
       user: publicUser,
-      message: `Subscribed to ${plan.name} — $${plan.price.toFixed(2)}/month`,
+      message: `Subscribed to ${plan.name} — $${plan.price.toFixed(2)}/month (demo mode)`,
     });
     response.cookies.set(sessionCookieOptions(token));
     return response;
@@ -63,20 +59,44 @@ export async function DELETE() {
       return apiError("Sign in to manage subscription", 401);
     }
 
-    const user = await prisma.user.update({
+    const user = await prisma.user.findUnique({
       where: { id: session.id },
-      data: {
-        subscriptionStatus: "canceled",
-      },
+      select: { stripeSubscriptionId: true },
+    });
+
+    if (isStripeConfigured() && user?.stripeSubscriptionId) {
+      await getStripe().subscriptions.update(user.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+      const updated = await prisma.user.update({
+        where: { id: session.id },
+        data: { subscriptionStatus: "canceled" },
+        select: userSessionSelect,
+      });
+      const publicUser = toPublicUser(updated);
+      const token = await createToken(publicUser);
+      const response = NextResponse.json({
+        user: publicUser,
+        message:
+          "Subscription will cancel at end of billing period. Manage billing anytime.",
+      });
+      response.cookies.set(sessionCookieOptions(token));
+      return response;
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: session.id },
+      data: { subscriptionStatus: "canceled" },
       select: userSessionSelect,
     });
 
-    const publicUser = toPublicUser(user);
+    const publicUser = toPublicUser(updated);
     const token = await createToken(publicUser);
 
     const response = NextResponse.json({
       user: publicUser,
-      message: "Subscription canceled — access continues until the end of your billing period",
+      message:
+        "Subscription canceled — access continues until the end of your billing period",
     });
     response.cookies.set(sessionCookieOptions(token));
     return response;

@@ -1,11 +1,5 @@
 # Free hosting on Render (https://render.com)
-# New → Blueprint → connect yaliharel10/shorty-website
-#
-# Free tier: no persistent disk — SQLite lives in the container filesystem.
-# Demo data is re-seeded on every deploy (build runs db:seed).
-# User signups persist until the next deploy or cold restart.
-#
-# Free tier also spins down after ~15 min idle (~30–50s cold start).
+# Live site: https://shorty-hhgo.onrender.com
 
 services:
   - type: web
@@ -22,4 +16,10 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_SITE_URL
+        value: https://shorty-hhgo.onrender.com
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
         sync: false

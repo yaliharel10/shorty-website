@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { AuthModal } from "@/components/AuthModal";
@@ -14,11 +14,38 @@ import type { PlanId } from "@/lib/subscription";
 function SubscriptionContent() {
   const { user, loading, refresh, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [authOpen, setAuthOpen] = useState(false);
   const [subscribeOpen, setSubscribeOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>("standard");
   const [canceling, setCanceling] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/subscription/config")
+      .then((r) => r.json())
+      .then((d) => setStripeEnabled(Boolean(d.stripeEnabled)))
+      .catch(() => setStripeEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("success") === "1") {
+      fetch("/api/subscription/sync", { method: "POST" })
+        .then((r) => r.json())
+        .then(async () => {
+          await refresh();
+          toast("Subscription active — welcome to Shorty!", "success");
+          router.replace("/subscription");
+        })
+        .catch(() => toast("Payment received — refresh if access isn't updated yet", "info"));
+    }
+    if (searchParams.get("canceled") === "1") {
+      toast("Checkout canceled", "info");
+      router.replace("/subscription");
+    }
+  }, [searchParams, refresh, toast, router]);
 
   const handleSelectPlan = (planId: PlanId) => {
     setSelectedPlan(planId);
@@ -47,6 +74,19 @@ function SubscriptionContent() {
     }
   };
 
+  const openBillingPortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/subscription/portal", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not open billing portal");
+      window.location.href = data.url;
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Billing portal failed", "error");
+      setPortalLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080808]">
@@ -57,6 +97,8 @@ function SubscriptionContent() {
 
   const trialDays = user?.trialEndsAt ? trialDaysRemaining(new Date(user.trialEndsAt)) : 0;
   const currentPlan = user ? getPlan(user.subscriptionTier) : null;
+  const hasPaidSub =
+    user?.subscriptionStatus === "active" || user?.subscriptionStatus === "canceled";
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">
@@ -108,11 +150,16 @@ function SubscriptionContent() {
                 {trialDays} day{trialDays !== 1 ? "s" : ""} left on your free trial
               </p>
             )}
-            {currentPlan && user.subscriptionStatus === "active" && (
+            {currentPlan && hasPaidSub && (
               <p className="mt-1 text-sm text-[#666]">
                 ${currentPlan.price.toFixed(2)}/month
                 {user.subscriptionEndsAt &&
-                  ` · Renews ${new Date(user.subscriptionEndsAt).toLocaleDateString()}`}
+                  ` · ${user.subscriptionStatus === "canceled" ? "Access until" : "Renews"} ${new Date(user.subscriptionEndsAt).toLocaleDateString()}`}
+              </p>
+            )}
+            {user.subscriptionStatus === "past_due" && (
+              <p className="mt-1 text-sm text-red-400">
+                Payment failed — update your billing info to restore access.
               </p>
             )}
             {user.subscriptionStatus === "canceled" && (
@@ -127,7 +174,16 @@ function SubscriptionContent() {
                   Subscribe now
                 </button>
               )}
-              {user.subscriptionStatus === "active" && user.role !== "admin" && (
+              {stripeEnabled && hasPaidSub && user.role !== "admin" && (
+                <button
+                  onClick={openBillingPortal}
+                  disabled={portalLoading}
+                  className="rounded-lg border border-[#444] px-5 py-2 text-sm text-[#aaa] hover:text-white disabled:opacity-50"
+                >
+                  {portalLoading ? "Opening..." : "Manage billing"}
+                </button>
+              )}
+              {user.subscriptionStatus === "active" && user.role !== "admin" && !stripeEnabled && (
                 <button
                   onClick={handleCancel}
                   disabled={canceling}
@@ -152,7 +208,9 @@ function SubscriptionContent() {
         <PricingPlans onSelectPlan={handleSelectPlan} selectedPlan={selectedPlan} />
 
         <p className="mt-10 text-center text-xs text-[#555]">
-          Demo billing only — no real charges. Compare prices are approximate Netflix US tiers.
+          {stripeEnabled
+            ? "Payments secured by Stripe. Compare-at prices are approximate Netflix US tiers."
+            : "Add Stripe keys on Render for live billing. Compare-at prices are approximate Netflix US tiers."}
         </p>
       </main>
 
