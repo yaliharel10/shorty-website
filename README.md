@@ -1,0 +1,164 @@
+# Shorty
+
+A Netflix-style streaming platform for premium short films. Built with Next.js, SQLite, and Prisma.
+
+## Features
+
+- **Browse & stream** — Featured hero, category rows, search, full-screen player
+- **People** — Cast & crew profile pages with bios and filmography; search filmmakers, actors, and crew from the navbar or `/browse/people`
+- **Subscriptions** — Three cheap tiers (Basic $1.99, Standard $3.99, Premium $5.99/mo) with 7-day free trial; demo checkout (no real billing)
+- **Continue watching** — Pick up where you left off (signed-in users)
+- **Accounts** — Register, sign in, edit profile
+- **My List & ratings** — Favorites and 1–10 star ratings
+- **Admin panel** — Analytics, film management, user management
+- **Production-ready basics** — Security headers, rate limiting, accessibility, SEO metadata
+
+## Quick start
+
+Run **one command at a time** (no inline `#` comments):
+
+```bash
+cd "/Users/yali/Personal folder/Side Projects/Shorty Website"
+npm install
+cp .env.example .env
+npm run db:setup
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+## Demo accounts
+
+All test users share the password **`demo1234`** except admin.
+
+| Username | Password | What it tests |
+|----------|----------|---------------|
+| `admin` | `admin123` | **Admin panel** — full site management |
+| `demo` | `demo1234` | Standard plan subscriber (full library access) |
+| `trialuser` | `demo1234` | Active 7-day free trial |
+| `basicuser` | `demo1234` | Basic plan ($1.99/mo) |
+| `premiumuser` | `demo1234` | Premium plan ($5.99/mo) |
+| `expireduser` | `demo1234` | Expired trial — sees subscribe paywall |
+| `guestplus` | `demo1234` | Canceled subscription — access until period ends |
+
+Password rules for **new** accounts: 8+ characters, at least one letter and one number.
+
+## Admin panel
+
+**URL:** sign in as `admin`, then go to:
+
+| Page | URL |
+|------|-----|
+| Dashboard | `/admin` |
+| Manage films | `/admin/films` |
+| Users & accounts | `/admin/users` |
+| Subscriptions | `/admin/subscriptions` |
+
+**Credentials:** `admin` / `admin123`
+
+Locally: [http://localhost:3000/admin](http://localhost:3000/admin)
+
+After deploying, use `https://your-domain.com/admin`.
+
+## Host online for free (Render)
+
+Shorty uses **SQLite**, so Vercel is not a good fit (no persistent disk). **Render** free tier works and includes a 1 GB persistent disk for the database.
+
+1. Push this project to GitHub (if not already).
+2. Create a free account at [render.com](https://render.com).
+3. **New → Blueprint** (or Web Service) and connect your repo.
+4. Render picks up `render.yaml` automatically, or set manually:
+   - **Build:** `npm install && npx prisma generate && npx prisma db push --accept-data-loss && npm run db:seed && npm run build`
+   - **Start:** `npm start`
+   - **DATABASE_URL:** `file:/var/data/shorty.db`
+   - **JWT_SECRET:** generate a long random string
+   - **NEXT_PUBLIC_SITE_URL:** your Render URL (e.g. `https://shorty.onrender.com`)
+5. Add a **persistent disk** mounted at `/var/data` (1 GB) in Render service settings.
+6. Deploy — demo accounts are created on first build via `db:seed`.
+
+Free tier notes: the app sleeps after ~15 min idle; first visit after sleep takes ~30–50 seconds to wake up.
+
+### Re-seed demo accounts on Render
+
+In the Render shell for your service:
+
+```bash
+npm run db:seed
+```
+
+## Production build
+
+```bash
+npm run clean
+npm run build
+npm run start
+```
+
+## Environment variables
+
+Copy `.env.example` to `.env`:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | SQLite path (default `file:./dev.db`) |
+| `JWT_SECRET` | **Yes in production** | Long random secret (32+ chars) |
+| `NEXT_PUBLIC_SITE_URL` | Recommended | Public URL for sitemap/metadata and password reset links |
+
+## Subscriptions
+
+New accounts get a **7-day free trial**. After that, subscribe at `/subscription` (demo billing — no real payment).
+
+| Plan | Price | Screens |
+|------|-------|---------|
+| Basic | $1.99/mo | 1 |
+| Standard | $3.99/mo | 2 |
+| Premium | $5.99/mo | 4 |
+
+## Account & password
+
+- **`/account`** — profile, password change, membership status
+- **Forgot password** — link on the sign-in modal; reset at `/reset-password?token=...`
+- In development (without `RESEND_API_KEY`), reset links are printed to the server console
+
+## API routes (account & admin)
+
+| Route | Purpose |
+|-------|---------|
+| `GET/PATCH /api/account` | Account info & change password |
+| `POST /api/auth/forgot-password` | Request password reset email |
+| `POST /api/auth/reset-password` | Set new password with token |
+| `GET /api/admin/subscriptions` | Subscription stats & subscriber list |
+| `PATCH /api/admin/users` | Update role, plan, trial, subscription dates |
+
+## Release checklist
+
+Before deploying:
+
+- [ ] Set a strong `JWT_SECRET` in production
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to your domain
+- [ ] Remove or change demo accounts in production
+- [ ] Consider PostgreSQL instead of SQLite for multi-instance hosting
+- [ ] Run `npm run build` successfully
+- [ ] Test on mobile, tablet, and desktop
+
+## Tech stack
+
+- Next.js 15, React 19, Tailwind CSS 4
+- SQLite + Prisma ORM
+- JWT sessions (httpOnly cookies) + bcrypt
+
+## Keyboard shortcuts
+
+- `F` — Focus search
+- `Esc` — Close player / dialog
+
+## Troubleshooting
+
+**Build fails with "Cannot find module for page"**
+→ Run `npm run clean` then `npm run build`. Don't run `db:setup` and `build` simultaneously.
+
+**Dev server invalid directory `#`**
+→ You pasted a shell comment after the command. Run `npm run dev` alone.
+
+**429 Too many requests**
+→ Auth is rate-limited to 10 attempts per 15 minutes per IP.
