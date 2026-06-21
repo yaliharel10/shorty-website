@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+npx prisma generate
+
 if [ -n "${TURSO_DATABASE_URL:-}" ] && [ -n "${TURSO_AUTH_TOKEN:-}" ]; then
-  export DATABASE_URL="${TURSO_DATABASE_URL}?authToken=${TURSO_AUTH_TOKEN}"
+  echo "Setting up Turso database..."
+  npx tsx scripts/setup-turso.ts
+else
+  echo "No Turso env vars — using local SQLite for schema push..."
+  npx prisma db push --accept-data-loss
 fi
 
-npx prisma generate
-npx prisma db push --accept-data-loss
 npm run db:seed
 next build

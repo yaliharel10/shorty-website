@@ -1,8 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { prisma } from "../src/lib/db";
 import { slugifyName } from "../src/lib/person-utils";
-
-const prisma = new PrismaClient();
 
 const peopleData = [
   {
