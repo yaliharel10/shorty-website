@@ -43,6 +43,17 @@ All test users share the password **`demo1234`** except admin.
 
 Password rules for **new** accounts: 8+ characters, at least one letter and one number.
 
+## Test hub (`/test`)
+
+**Live:** [https://shorty-hhgo.onrender.com/test](https://shorty-hhgo.onrender.com/test)  
+**Local:** [http://localhost:3000/test](http://localhost:3000/test)
+
+- Server health check
+- One-click login for every demo account
+- Links to all test URLs and credentials table
+
+One-click login requires `ENABLE_TEST_LOGIN=true` (already set in `render.yaml` for Render).
+
 ## Admin panel
 
 **URL:** sign in as `admin`, then go to:
