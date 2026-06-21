@@ -6,6 +6,8 @@ import { useAuth } from "./AuthProvider";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
+import { fetchJson } from "@/lib/utils";
+import type { User } from "@/types";
 
 type AuthModalProps = {
   open: boolean;
@@ -13,6 +15,8 @@ type AuthModalProps = {
   onSuccess: () => void;
   defaultMode?: "login" | "register";
 };
+
+type AuthResponse = { user?: User; error?: string };
 
 export function AuthModal({
   open,
@@ -23,14 +27,16 @@ export function AuthModal({
   const [isLogin, setIsLogin] = useState(defaultMode === "login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingHint, setLoadingHint] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-  const { refresh } = useAuth();
+  const { setUser } = useAuth();
 
   useEffect(() => {
     if (open) {
       setIsLogin(defaultMode === "login");
       setError("");
+      setLoadingHint("");
     }
   }, [open, defaultMode]);
 
@@ -38,6 +44,11 @@ export function AuthModal({
     e.preventDefault();
     setError("");
     setLoading(true);
+    setLoadingHint("Signing in...");
+
+    const slowHint = setTimeout(() => {
+      setLoadingHint("Server is waking up — free hosting can take up to a minute...");
+    }, 4000);
 
     const form = new FormData(e.currentTarget);
     const identifier = (form.get("identifier") as string).trim();
@@ -48,11 +59,13 @@ export function AuthModal({
     if (!isLogin && password !== confirm) {
       setError("Passwords do not match");
       setLoading(false);
+      setLoadingHint("");
+      clearTimeout(slowHint);
       return;
     }
 
     try {
-      const res = await fetch("/api/auth", {
+      const { res, data } = await fetchJson<AuthResponse>("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
@@ -61,16 +74,30 @@ export function AuthModal({
             : { action: "register", username: identifier, email, password }
         ),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Authentication failed");
 
-      await refresh();
+      if (!res.ok) {
+        throw new Error(data.error || "Authentication failed");
+      }
+
+      if (data.user) {
+        setUser(data.user);
+      }
+
+      setLoadingHint("Success! Redirecting...");
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setError(
+          "Request timed out. The server may still be waking up — wait a moment and try again."
+        );
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
+      clearTimeout(slowHint);
       setLoading(false);
+      setLoadingHint("");
     }
   };
 
@@ -99,6 +126,7 @@ export function AuthModal({
             autoComplete={isLogin ? "username" : "username"}
             className={inputClassName}
             placeholder={isLogin ? "Username or email" : "Choose a username"}
+            disabled={loading}
           />
         </FormField>
 
@@ -112,6 +140,7 @@ export function AuthModal({
               autoComplete="email"
               className={inputClassName}
               placeholder="you@example.com"
+              disabled={loading}
             />
           </FormField>
         )}
@@ -131,6 +160,7 @@ export function AuthModal({
               autoComplete={isLogin ? "current-password" : "new-password"}
               className={inputClassName}
               placeholder="Password"
+              disabled={loading}
             />
             <button
               type="button"
@@ -170,8 +200,13 @@ export function AuthModal({
               autoComplete="new-password"
               className={inputClassName}
               placeholder="Confirm password"
+              disabled={loading}
             />
           </FormField>
+        )}
+
+        {loadingHint && (
+          <p className="text-center text-xs text-[#888]">{loadingHint}</p>
         )}
 
         {error && (

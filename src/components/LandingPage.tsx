@@ -72,10 +72,19 @@ function LandingContent() {
     setAuthOpen(true);
   };
 
-  if (authLoading || user) {
+  if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080808]">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (user) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#080808]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
+        <p className="text-sm text-[#888]">Taking you to Shorty...</p>
       </div>
     );
   }

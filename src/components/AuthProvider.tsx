@@ -13,6 +13,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   refresh: () => Promise<void>;
+  setUser: (user: User | null) => void;
   logout: () => Promise<void>;
 };
 
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   refresh: async () => {},
+  setUser: () => {},
   logout: async () => {},
 });
 
@@ -29,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", { credentials: "same-origin" });
       const data = await res.json();
       setUser(data.user);
     } catch {
@@ -44,12 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }, []);
 
+  const setUserDirect = useCallback((next: User | null) => {
+    setUser(next);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, refresh, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, refresh, setUser: setUserDirect, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

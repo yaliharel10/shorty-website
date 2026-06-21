@@ -26,3 +26,30 @@ export function youtubeEmbedUrl(url: string, autoplay = false) {
   const base = url.includes("embed") ? url : url.replace("watch?v=", "embed/");
   return autoplay ? `${base}?autoplay=1&rel=0` : base;
 }
+
+/** Fetch JSON with timeout — Render free tier can take 30–60s to wake from sleep. */
+export async function fetchJson<T = Record<string, unknown>>(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs = 60000
+): Promise<{ res: Response; data: T }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      credentials: "same-origin",
+      signal: controller.signal,
+    });
+    let data: T;
+    try {
+      data = (await res.json()) as T;
+    } catch {
+      data = {} as T;
+    }
+    return { res, data };
+  } finally {
+    clearTimeout(timeout);
+  }
+}

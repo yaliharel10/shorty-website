@@ -27,7 +27,8 @@ export type SessionUser = {
 };
 
 export async function hashPassword(password: string) {
-  return bcrypt.hash(password, 12);
+  const rounds = process.env.NODE_ENV === "production" ? 10 : 12;
+  return bcrypt.hash(password, rounds);
 }
 
 export async function verifyPassword(password: string, hash: string) {
