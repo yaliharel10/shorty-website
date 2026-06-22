@@ -46,6 +46,14 @@ export async function fetchJson<T = Record<string, unknown>>(
     try {
       data = (await res.json()) as T;
     } catch {
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          res.status === 401 || res.status === 403
+            ? "Site access is blocked — disable Vercel Deployment Protection in project settings"
+            : `Server error (${res.status}) — try again or check /api/health`
+        );
+      }
       data = {} as T;
     }
     return { res, data };
