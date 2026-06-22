@@ -1,35 +1,50 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { X, Heart, Lock } from "lucide-react";
-import { cn, formatRating, youtubeEmbedUrl } from "@/lib/utils";
+import { X, Lock } from "lucide-react";
+import { youtubeEmbedUrl } from "@/lib/utils";
 import { useBodyScrollLock, useFocusTrap } from "@/hooks/useUI";
 import type { Film } from "@/types";
 import { CreditsRow } from "@/components/PersonCard";
 import { useAuth } from "./AuthProvider";
 import { useToast } from "./Toast";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { RatingBadge, StarRating } from "@/components/StarRating";
+import { WatchedBadge } from "@/components/WatchedBadge";
+import { ShareButton } from "@/components/ShareButton";
+import { FilmCardInline } from "@/components/FilmCard";
 
 type FilmModalProps = {
   filmId: string | null;
   onClose: () => void;
   onFavoriteChange: () => void;
+  onOpenFilm?: (id: string) => void;
   guestPreview?: boolean;
   onUpgrade?: () => void;
+  autoplayVideo?: boolean;
+  scrollToDetails?: boolean;
 };
 
 export function FilmModal({
   filmId,
   onClose,
   onFavoriteChange,
+  onOpenFilm,
   guestPreview = false,
   onUpgrade,
+  autoplayVideo = true,
+  scrollToDetails = false,
 }: FilmModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const openedAtRef = useRef<number>(0);
   const [film, setFilm] = useState<Film | null>(null);
+  const [similar, setSimilar] = useState<Film[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [hasWatched, setHasWatched] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
   const [userRating, setUserRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -41,11 +56,14 @@ export function FilmModal({
   useEffect(() => {
     if (!filmId) {
       setFilm(null);
+      setSimilar([]);
       return;
     }
 
     setLoading(true);
     setSubscriptionRequired(false);
+    openedAtRef.current = Date.now();
+
     fetch(`/api/films/${filmId}`)
       .then(async (r) => {
         const data = await r.json();
@@ -57,12 +75,43 @@ export function FilmModal({
         if (data.film) {
           setFilm(data.film);
           setIsFavorite(data.isFavorite);
+          setHasWatched(Boolean(data.hasWatched));
+          setProgressPercent(data.progressPercent ?? 0);
           setUserRating(data.userRating || 0);
+          setSimilar(data.similar ?? []);
         }
       })
       .catch(() => toast("Failed to load film", "error"))
       .finally(() => setLoading(false));
   }, [filmId, toast]);
+
+  useEffect(() => {
+    if (!loading && scrollToDetails && detailsRef.current) {
+      detailsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading, scrollToDetails]);
+
+  useEffect(() => {
+    if (!filmId || !film || guestPreview) return;
+
+    return () => {
+      if (!user) return;
+      const elapsedSec = (Date.now() - openedAtRef.current) / 1000;
+      const durationSec = Math.max(film.duration * 60, 1);
+      const estimated = Math.min(
+        95,
+        Math.max(progressPercent, Math.round((elapsedSec / durationSec) * 100))
+      );
+      if (estimated >= 5) {
+        fetch(`/api/films/${filmId}/progress`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ progressPercent: estimated }),
+        }).catch(() => {});
+        onFavoriteChange();
+      }
+    };
+  }, [filmId, film, user, guestPreview, progressPercent, onFavoriteChange]);
 
   if (!filmId) return null;
 
@@ -99,6 +148,11 @@ export function FilmModal({
       onFavoriteChange();
     }
   };
+
+  const startSeconds =
+    film && progressPercent > 0 && progressPercent < 95
+      ? Math.floor((progressPercent / 100) * film.duration * 60)
+      : 0;
 
   return (
     <div
@@ -137,8 +191,7 @@ export function FilmModal({
                   </div>
                   <h3 className="text-xl font-bold">Subscribe to watch</h3>
                   <p className="max-w-sm text-sm text-[#888]">
-                    Plans start at $1.99/month — much cheaper than Netflix.
-                    New members get a 7-day free trial.
+                    Plans start at $1.99/month. New members get a 7-day free trial.
                   </p>
                   <button
                     onClick={() => onUpgrade?.()}
@@ -149,7 +202,7 @@ export function FilmModal({
                 </div>
               ) : (
                 <iframe
-                  src={youtubeEmbedUrl(film.videoUrl, true)}
+                  src={youtubeEmbedUrl(film.videoUrl, autoplayVideo, startSeconds)}
                   className="h-full w-full"
                   allow="autoplay; fullscreen; encrypted-media"
                   allowFullScreen
@@ -158,97 +211,88 @@ export function FilmModal({
                 />
               )}
             </div>
-            <div className="p-6 md:p-10">
+
+            <div ref={detailsRef} className="p-6 md:p-10">
               {guestPreview ? (
-                <div className="mb-6 rounded-xl border border-[#ff7a18]/30 bg-[#ff7a18]/10 p-4 text-center">
-                  <p className="text-sm text-[#ccc]">
-                    Enjoying the free preview?{" "}
-                    <a href="/?signin=1" className="font-bold text-[#ff7a18] hover:underline">
-                      Sign up free
-                    </a>{" "}
-                    to unlock the full library, save favorites, and rate films.
-                  </p>
-                </div>
+                <>
+                  <div className="mb-6 rounded-xl border border-[#ff7a18]/30 bg-[#ff7a18]/10 p-4 text-center">
+                    <p className="text-sm text-[#ccc]">
+                      Enjoying the free preview?{" "}
+                      <a href="/?signin=1" className="font-bold text-[#ff7a18] hover:underline">
+                        Sign up free
+                      </a>{" "}
+                      to unlock the full library.
+                    </p>
+                  </div>
+                  <h2 className="text-2xl font-bold md:text-3xl">{film.title}</h2>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <RatingBadge rating={film.rating} />
+                    <span className="text-sm capitalize text-[#888]">{film.category}</span>
+                  </div>
+                </>
               ) : (
                 <>
-                  <div className="mb-4 flex items-start justify-between gap-4">
-                    <div>
+                  <div className="mb-8 flex flex-col gap-4 border-b border-[#222] pb-8 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        {hasWatched && <WatchedBadge />}
+                        {progressPercent > 0 && progressPercent < 95 && (
+                          <span className="rounded-full bg-[#ff7a18]/15 px-2.5 py-0.5 text-xs font-bold text-[#ff7a18]">
+                            {progressPercent}% watched
+                          </span>
+                        )}
+                      </div>
                       <h2 className="text-2xl font-bold md:text-3xl">{film.title}</h2>
-                      <div className="mt-2 flex flex-wrap gap-3 text-sm text-[#888]">
-                        <span className="font-bold text-yellow-400">
-                          ⭐ {formatRating(film.rating)}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <RatingBadge rating={film.rating} className="text-sm" />
+                        <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-sm capitalize text-[#aaa]">
+                          {film.category}
                         </span>
-                        <span className="capitalize">{film.category}</span>
-                        <span>{film.year}</span>
-                        <span>{film.duration} min</span>
-                        {film._count && <span>{film._count.views} views</span>}
+                        <span className="rounded-full bg-[#1a1a1a] px-3 py-1 text-sm text-[#aaa]">
+                          {film.year} · {film.duration} min
+                        </span>
                       </div>
                     </div>
-                    <button
-                      onClick={toggleFavorite}
-                      aria-label={isFavorite ? "Remove from My List" : "Add to My List"}
-                      aria-pressed={isFavorite}
-                      className={cn(
-                        "rounded-full p-2 transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7a18]",
-                        isFavorite ? "text-red-500" : "text-[#555] hover:text-red-400"
-                      )}
-                    >
-                      <Heart
-                        className={cn("h-8 w-8", isFavorite && "fill-red-500")}
-                        aria-hidden="true"
+                    <div className="flex shrink-0 items-center gap-2">
+                      <ShareButton filmId={film.id} title={film.title} />
+                      <FavoriteButton
+                        isFavorite={isFavorite}
+                        onToggle={toggleFavorite}
+                        size="lg"
                       />
-                    </button>
-                  </div>
-
-                  <fieldset className="mb-6 border-none p-0">
-                    <legend className="mb-2 text-xs font-bold uppercase tracking-widest text-[#555]">
-                      Your rating {!user && "(sign in required)"}
-                    </legend>
-                    <div className="flex flex-wrap gap-1" role="group" aria-label="Rate this film from 1 to 10">
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => saveRating(num)}
-                          onMouseEnter={() => setHoverRating(num)}
-                          onMouseLeave={() => setHoverRating(0)}
-                          aria-label={`Rate ${num} out of 10`}
-                          aria-pressed={(hoverRating || userRating) >= num}
-                          className={cn(
-                            "star-btn h-7 w-7 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#ff7a18]",
-                            (hoverRating || userRating) >= num && "active"
-                          )}
-                        >
-                          <svg viewBox="0 0 24 24" className="h-full w-full" aria-hidden="true">
-                            <path
-                              strokeWidth="1.5"
-                              d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
-                            />
-                          </svg>
-                        </button>
-                      ))}
                     </div>
-                  </fieldset>
-                </>
-              )}
-
-              {guestPreview && (
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold md:text-3xl">{film.title}</h2>
-                  <div className="mt-2 flex flex-wrap gap-3 text-sm text-[#888]">
-                    <span className="font-bold text-yellow-400">
-                      ⭐ {formatRating(film.rating)}
-                    </span>
-                    <span className="capitalize">{film.category}</span>
-                    <span>{film.duration} min</span>
                   </div>
-                </div>
+
+                  <div className="mb-8">
+                    <StarRating
+                      value={userRating}
+                      hoverValue={hoverRating}
+                      onChange={saveRating}
+                      onHover={setHoverRating}
+                      onHoverEnd={() => setHoverRating(0)}
+                      label={user ? "Your rating" : "Your rating (sign in required)"}
+                    />
+                  </div>
+                </>
               )}
 
               <p className="mb-8 leading-relaxed text-[#bbb]">{film.description}</p>
 
               {film.credits && film.credits.length > 0 && (
                 <CreditsRow credits={film.credits} title="Cast & Crew" />
+              )}
+
+              {!guestPreview && similar.length > 0 && onOpenFilm && (
+                <section className="mt-10 border-t border-[#222] pt-8">
+                  <h3 className="mb-4 text-lg font-bold">More like this</h3>
+                  <div className="film-row pb-2">
+                    {similar.map((item) => (
+                      <div key={item.id} onClick={() => onOpenFilm(item.id)}>
+                        <FilmCardInline film={item} />
+                      </div>
+                    ))}
+                  </div>
+                </section>
               )}
             </div>
           </>

@@ -1,6 +1,7 @@
 export const CATEGORIES = [
   { id: "all", label: "All Films" },
   { id: "top", label: "Top Rated" },
+  { id: "new", label: "New Releases" },
   { id: "drama", label: "Drama" },
   { id: "comedy", label: "Comedy" },
   { id: "animation", label: "Animation" },
@@ -8,6 +9,9 @@ export const CATEGORIES = [
 ] as const;
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
+
+/** Top nav browse links (no genre categories). */
+export const NAV_CATEGORIES = CATEGORIES.slice(0, 3);
 
 export function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(" ");
@@ -22,9 +26,14 @@ export function avatarUrl(username: string, photoUrl?: string | null) {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=ff7a18&color=fff&bold=true`;
 }
 
-export function youtubeEmbedUrl(url: string, autoplay = false) {
+export function youtubeEmbedUrl(url: string, autoplay = false, startSeconds = 0) {
   const base = url.includes("embed") ? url : url.replace("watch?v=", "embed/");
-  return autoplay ? `${base}?autoplay=1&rel=0` : base;
+  const params = new URLSearchParams();
+  params.set("rel", "0");
+  if (autoplay) params.set("autoplay", "1");
+  if (startSeconds > 0) params.set("start", String(Math.floor(startSeconds)));
+  const join = base.includes("?") ? "&" : "?";
+  return `${base}${join}${params.toString()}`;
 }
 
 /** Fetch JSON with a hard timeout (Render free tier can take 30–60s to wake). */

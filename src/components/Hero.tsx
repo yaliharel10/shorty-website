@@ -1,21 +1,34 @@
 "use client";
 
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Play, Plus, Info, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
 import { useRef } from "react";
-import { cn, formatRating } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import type { Film } from "@/types";
+import { FavoriteButton } from "@/components/FavoriteButton";
+import { RatingBadge } from "@/components/StarRating";
+import { WatchedBadge } from "@/components/WatchedBadge";
+import { FilmCardInline } from "@/components/FilmCard";
 
 type HeroProps = {
   film: Film;
   isFavorite?: boolean;
+  isWatched?: boolean;
   onPlay: () => void;
-  onToggleFavorite: () => void;
+  onDetails: () => void;
+  onToggleFavorite: () => void | Promise<void>;
 };
 
-export function Hero({ film, isFavorite, onPlay, onToggleFavorite }: HeroProps) {
+export function Hero({
+  film,
+  isFavorite,
+  isWatched,
+  onPlay,
+  onDetails,
+  onToggleFavorite,
+}: HeroProps) {
   return (
-    <section className="relative h-[60vh] min-h-[420px] max-h-[680px] w-full overflow-hidden">
+    <section className="relative h-[62vh] min-h-[460px] max-h-[720px] w-full overflow-hidden">
       <div className="absolute inset-0">
         <Image
           src={film.posterUrl}
@@ -26,54 +39,59 @@ export function Hero({ film, isFavorite, onPlay, onToggleFavorite }: HeroProps) 
           sizes="100vw"
         />
       </div>
-      <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/60 to-black/20" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/65 to-black/25" />
       <div className="hero-gradient absolute inset-0" />
-      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10 lg:p-14">
-        <p className="mb-2 inline-block rounded-full bg-[#ff7a18]/20 px-3 py-1 text-xs font-bold uppercase tracking-[2px] text-[#ff7a18]">
-          ✦ Featured Short
-        </p>
-        <h1 className="mb-3 max-w-3xl text-3xl font-extrabold leading-tight md:text-5xl lg:text-6xl">
-          {film.title}
-        </h1>
-        <p className="mb-4 max-w-xl text-sm leading-relaxed text-[#ccc] md:text-base line-clamp-3">
-          {film.description}
-        </p>
-        <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-[#aaa]">
-          <span className="flex items-center gap-1 rounded-full bg-black/50 px-3 py-1 font-bold text-yellow-400">
-            <Star className="h-3.5 w-3.5 fill-yellow-400" />
-            {formatRating(film.rating)}
-          </span>
-          <span className="capitalize">{film.category}</span>
-          <span>{film.year}</span>
-          <span>{film.duration} min</span>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button
-            onClick={onPlay}
-            className="flex items-center gap-2 rounded-lg bg-white px-7 py-3 text-sm font-bold text-black shadow-xl transition hover:scale-105 hover:bg-[#e6e6e6]"
-          >
-            <Play className="h-5 w-5 fill-black" />
-            Play Now
-          </button>
-          <button
-            onClick={onToggleFavorite}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-7 py-3 text-sm font-bold transition hover:scale-105",
-              isFavorite
-                ? "bg-[#ff7a18] text-white shadow-lg shadow-[#ff7a18]/30"
-                : "glass text-white hover:bg-white/10"
-            )}
-          >
-            <Plus className={cn("h-5 w-5 transition", isFavorite && "rotate-45")} />
-            {isFavorite ? "In My List" : "My List"}
-          </button>
-          <button
-            onClick={onPlay}
-            className="flex items-center gap-2 rounded-lg glass px-7 py-3 text-sm font-bold text-white transition hover:bg-white/10"
-          >
-            <Info className="h-5 w-5" />
-            Details
-          </button>
+
+      <div className="absolute bottom-0 left-0 right-0 z-10 p-6 pb-10 md:p-10 md:pb-14 lg:p-14 lg:pb-16">
+        <div className="mx-auto flex max-w-4xl flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="inline-block rounded-full bg-[#ff7a18]/20 px-3 py-1 text-xs font-bold uppercase tracking-[2px] text-[#ff7a18]">
+              ✦ Featured Short
+            </p>
+            {isWatched && <WatchedBadge />}
+          </div>
+
+          <h1 className="max-w-3xl text-3xl font-extrabold leading-tight md:text-5xl lg:text-6xl">
+            {film.title}
+          </h1>
+
+          <p className="max-w-xl text-sm leading-relaxed text-[#ccc] md:text-base line-clamp-2 md:line-clamp-3">
+            {film.description}
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[#aaa]">
+            <RatingBadge rating={film.rating} />
+            <span className="rounded-full bg-black/40 px-3 py-1 capitalize">{film.category}</span>
+            <span className="rounded-full bg-black/40 px-3 py-1">{film.year}</span>
+            <span className="rounded-full bg-black/40 px-3 py-1">{film.duration} min</span>
+          </div>
+
+          <div className="mt-1 rounded-2xl border border-white/10 bg-black/50 p-4 backdrop-blur-md md:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+              <button
+                onClick={onPlay}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-white px-8 py-3.5 text-sm font-bold text-black shadow-xl transition hover:bg-[#e6e6e6] sm:flex-none sm:min-w-[160px]"
+              >
+                <Play className="h-5 w-5 fill-black" />
+                Play Now
+              </button>
+              <div className="flex flex-1 gap-2 sm:justify-end">
+                <FavoriteButton
+                  isFavorite={!!isFavorite}
+                  onToggle={onToggleFavorite}
+                  variant="pill"
+                  className="flex-1 sm:flex-none"
+                />
+                <button
+                  onClick={onDetails}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-white/10 sm:flex-none"
+                >
+                  <Info className="h-5 w-5" />
+                  Details
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -84,10 +102,25 @@ type FilmRowProps = {
   title: string;
   films: Film[];
   favoriteIds: string[];
+  watchedIds: string[];
+  newFilmIds?: string[];
+  watchProgress?: Record<string, number>;
+  continueIds?: string[];
+  onSeeAll?: () => void;
   onFilmClick: (film: Film) => void;
 };
 
-export function FilmRow({ title, films, favoriteIds, onFilmClick }: FilmRowProps) {
+export function FilmRow({
+  title,
+  films,
+  favoriteIds,
+  watchedIds,
+  newFilmIds = [],
+  watchProgress = {},
+  continueIds = [],
+  onSeeAll,
+  onFilmClick,
+}: FilmRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
   if (!films.length) return null;
@@ -100,9 +133,20 @@ export function FilmRow({ title, films, favoriteIds, onFilmClick }: FilmRowProps
   };
 
   return (
-    <section className="group/row mb-10 animate-fade-in">
-      <div className="mb-3 flex items-center justify-between px-4 md:px-8 lg:px-12">
-        <h2 className="text-lg font-bold md:text-xl">{title}</h2>
+    <section className="group/row mb-12 animate-fade-in pt-2">
+      <div className="mb-4 flex items-center justify-between px-4 md:px-8 lg:px-12">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold md:text-xl">{title}</h2>
+          {onSeeAll && (
+            <button
+              type="button"
+              onClick={onSeeAll}
+              className="text-sm font-medium text-[#888] transition hover:text-[#ff7a18]"
+            >
+              See all →
+            </button>
+          )}
+        </div>
         <div className="flex gap-1 opacity-0 transition group-hover/row:opacity-100">
           <button
             onClick={() => scroll("left")}
@@ -126,44 +170,14 @@ export function FilmRow({ title, films, favoriteIds, onFilmClick }: FilmRowProps
             <FilmCardInline
               film={film}
               isFavorite={favoriteIds.includes(film.id)}
+              isWatched={watchedIds.includes(film.id)}
+              isContinue={continueIds.includes(film.id)}
+              isNew={newFilmIds.includes(film.id)}
+              progressPercent={watchProgress[film.id] ?? 0}
             />
           </div>
         ))}
       </div>
     </section>
-  );
-}
-
-function FilmCardInline({
-  film,
-  isFavorite,
-}: {
-  film: Film;
-  isFavorite: boolean;
-}) {
-  return (
-    <div className="group relative w-[150px] shrink-0 cursor-pointer overflow-hidden rounded-lg sm:w-[170px] md:w-[190px] card-hover scroll-snap-align-start">
-      <div className="relative aspect-[2/3]">
-        <Image
-          src={film.posterUrl}
-          alt={film.title}
-          fill
-          className="object-cover transition duration-500 group-hover:scale-110"
-          sizes="190px"
-        />
-        <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/90 via-black/20 to-transparent p-3 opacity-0 transition group-hover:opacity-100">
-          <p className="truncate text-sm font-bold">{film.title}</p>
-          <p className="text-xs text-[#ff7a18]">⭐ {formatRating(film.rating)}</p>
-        </div>
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition group-hover:opacity-100">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#ff7a18] shadow-lg">
-            <Play className="ml-0.5 h-5 w-5 fill-white text-white" />
-          </div>
-        </div>
-        {isFavorite && (
-          <span className="absolute right-2 top-2 text-sm drop-shadow">❤️</span>
-        )}
-      </div>
-    </div>
   );
 }

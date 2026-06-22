@@ -19,6 +19,8 @@ import {
 import { PersonCard } from "@/components/PersonCard";
 import { useDebouncedValue } from "@/hooks/useUI";
 import { SubscribeModal } from "@/components/SubscribeModal";
+import { BackToTop } from "@/components/BackToTop";
+import { KeyboardShortcuts, useKeyboardShortcuts } from "@/components/KeyboardShortcuts";
 import { trialDaysRemaining } from "@/lib/subscription";
 import type { Film, FilmsResponse, PersonSummary } from "@/types";
 
@@ -36,6 +38,9 @@ function HomeContent() {
   const [authOpen, setAuthOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [subscribeOpen, setSubscribeOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [modalAutoplay, setModalAutoplay] = useState(true);
+  const [modalDetails, setModalDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchPeople, setSearchPeople] = useState<PersonSummary[]>([]);
 
@@ -91,6 +96,15 @@ function HomeContent() {
   }, [searchParams]);
 
   useEffect(() => {
+    const watch = searchParams.get("watch");
+    if (watch && user) {
+      setSelectedFilmId(watch);
+    }
+  }, [searchParams, user]);
+
+  useKeyboardShortcuts(() => setShortcutsOpen(true));
+
+  useEffect(() => {
     fetchFilms();
   }, [fetchFilms]);
 
@@ -112,7 +126,25 @@ function HomeContent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const openFilm = (film: Film) => setSelectedFilmId(film.id);
+  const openFilm = (film: Film | string, mode: "play" | "details" = "play") => {
+    const id = typeof film === "string" ? film : film.id;
+    setModalAutoplay(mode === "play");
+    setModalDetails(mode === "details");
+    setSelectedFilmId(id);
+    router.replace(`/browse?watch=${id}`, { scroll: false });
+  };
+
+  const closeFilm = () => {
+    setSelectedFilmId(null);
+    setModalDetails(false);
+    router.replace("/browse", { scroll: false });
+  };
+
+  const browseCategory = (cat: string) => {
+    setShowFavorites(false);
+    setCategory(cat);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const toggleFavoriteForFeatured = async () => {
     if (!user || !data?.featured) {
@@ -133,6 +165,7 @@ function HomeContent() {
   const categoryLabels: Record<string, string> = {
     all: "All Films",
     top: "Top Rated",
+    new: "New Releases",
     drama: "Drama",
     comedy: "Comedy",
     animation: "Animation",
@@ -174,10 +207,10 @@ function HomeContent() {
           setShowFavorites(true);
         }}
         onOpenAuth={() => setAuthOpen(true)}
-        onOpenProfile={() => setProfileOpen(true)}
         onGoHome={goHome}
         showingFavorites={showFavorites}
         onOpenSubscribe={() => setSubscribeOpen(true)}
+        favoriteCount={data?.favoriteIds.length ?? 0}
       />
 
       {user && !user.hasStreamingAccess && (
@@ -215,7 +248,9 @@ function HomeContent() {
           <Hero
             film={data.featured}
             isFavorite={data.favoriteIds.includes(data.featured.id)}
-            onPlay={() => openFilm(data.featured!)}
+            isWatched={data.watchedIds.includes(data.featured.id)}
+            onPlay={() => openFilm(data.featured!, "play")}
+            onDetails={() => openFilm(data.featured!, "details")}
             onToggleFavorite={toggleFavoriteForFeatured}
           />
         )
@@ -223,7 +258,7 @@ function HomeContent() {
 
       <main
         id="main-content"
-        className={showHero && !loading ? "relative -mt-24 pb-16" : "pt-20 pb-16"}
+        className={showHero && !loading ? "relative -mt-10 pb-16 pt-4" : "pt-20 pb-16"}
       >
         {loading ? (
           isBrowseHome ? (
@@ -248,6 +283,8 @@ function HomeContent() {
                     key={film.id}
                     film={film}
                     isFavorite
+                    isWatched={data.watchedIds.includes(film.id)}
+                    progressPercent={data.watchProgress[film.id]}
                     onClick={() => openFilm(film)}
                   />
                 ))}
@@ -285,6 +322,8 @@ function HomeContent() {
                     key={film.id}
                     film={film}
                     isFavorite={data.favoriteIds.includes(film.id)}
+                    isWatched={data.watchedIds.includes(film.id)}
+                    isNew={data.newFilmIds.includes(film.id)}
                     onClick={() => openFilm(film)}
                   />
                 ))}
@@ -303,7 +342,34 @@ function HomeContent() {
                 title="Continue Watching"
                 films={data.continueWatching}
                 favoriteIds={data.favoriteIds}
-                onFilmClick={openFilm}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                continueIds={data.continueWatching.map((f) => f.id)}
+                onFilmClick={(f) => openFilm(f, "play")}
+              />
+            )}
+            {data?.recommendedForYou && data.recommendedForYou.length > 0 && (
+              <FilmRow
+                title="Recommended for You"
+                films={data.recommendedForYou}
+                favoriteIds={data.favoriteIds}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onFilmClick={(f) => openFilm(f)}
+              />
+            )}
+            {data?.newReleases && data.newReleases.length > 0 && (
+              <FilmRow
+                title="New Releases"
+                films={data.newReleases}
+                favoriteIds={data.favoriteIds}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onSeeAll={() => browseCategory("new")}
+                onFilmClick={(f) => openFilm(f)}
               />
             )}
             {data?.topRated && data.topRated.length > 0 && (
@@ -311,7 +377,11 @@ function HomeContent() {
                 title="Top Rated"
                 films={data.topRated}
                 favoriteIds={data.favoriteIds}
-                onFilmClick={openFilm}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onSeeAll={() => browseCategory("top")}
+                onFilmClick={(f) => openFilm(f)}
               />
             )}
             {data?.byCategory.map((row) => (
@@ -320,7 +390,11 @@ function HomeContent() {
                 title={categoryLabels[row.category] || row.category}
                 films={row.films}
                 favoriteIds={data.favoriteIds}
-                onFilmClick={openFilm}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onSeeAll={() => browseCategory(row.category)}
+                onFilmClick={(f) => openFilm(f)}
               />
             ))}
           </>
@@ -341,16 +415,26 @@ function HomeContent() {
           <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
             Esc
           </kbd>{" "}
-          to close player
+          to close player ·{" "}
+          <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
+            ?
+          </kbd>{" "}
+          for shortcuts
         </p>
       </footer>
 
+      <BackToTop />
+
       <FilmModal
         filmId={selectedFilmId}
-        onClose={() => setSelectedFilmId(null)}
+        onClose={closeFilm}
         onFavoriteChange={fetchFilms}
+        onOpenFilm={(id) => openFilm(id, "play")}
         onUpgrade={() => setSubscribeOpen(true)}
+        autoplayVideo={modalAutoplay}
+        scrollToDetails={modalDetails}
       />
+      <KeyboardShortcuts open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <AuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}

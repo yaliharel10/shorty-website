@@ -72,9 +72,14 @@ export type FilmsResponse = {
   films: Film[];
   featured: Film | null;
   topRated: Film[];
+  newReleases: Film[];
+  recommendedForYou: Film[];
   continueWatching: Film[];
   byCategory: { category: string; films: Film[] }[];
   favoriteIds: string[];
+  watchedIds: string[];
+  newFilmIds: string[];
+  watchProgress: Record<string, number>;
   userRatings: Record<string, number>;
   hasStreamingAccess: boolean;
 };

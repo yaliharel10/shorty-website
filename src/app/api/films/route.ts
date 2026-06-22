@@ -4,11 +4,16 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { apiError, handleApiError } from "@/lib/api-utils";
+import {
+  getRecommendedForUser,
+  isNewFilm,
+} from "@/lib/recommendations";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
 
 const filmListInclude = {
   _count: { select: { ratings: true, favorites: true, views: true } },
+  credits: { select: { personId: true } },
 } as const;
 
 export async function GET(request: Request) {
@@ -38,42 +43,70 @@ export async function GET(request: Request) {
 
     if (search) {
       const q = search.toLowerCase();
+      const creditMatches = await prisma.filmCredit.findMany({
+        where: { person: { name: { contains: search } } },
+        select: { filmId: true },
+      });
+      const creditFilmIds = new Set(creditMatches.map((c) => c.filmId));
       films = films.filter(
         (f) =>
           f.title.toLowerCase().includes(q) ||
           f.description.toLowerCase().includes(q) ||
-          f.category.toLowerCase().includes(q)
+          f.category.toLowerCase().includes(q) ||
+          creditFilmIds.has(f.id)
       );
     }
 
     if (category === "top") {
       films = [...films].sort((a, b) => b.rating - a.rating).slice(0, 8);
+    } else if (category === "new") {
+      films = [...films]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, 20);
     } else if (category !== "all") {
       films = films.filter((f) => f.category === category);
     }
 
     let favoriteIds: string[] = [];
+    let watchedIds: string[] = [];
     let userRatings: Record<string, number> = {};
+    let watchProgress: Record<string, number> = {};
+    let viewEvents: { filmId: string }[] = [];
 
-    if (session) {
-      const [favorites, ratings] = await Promise.all([
-        prisma.favorite.findMany({
-          where: { userId: session.id },
-          select: { filmId: true },
-        }),
-        prisma.rating.findMany({
-          where: { userId: session.id },
-          select: { filmId: true, score: true },
-        }),
-      ]);
-      favoriteIds = favorites.map((f) => f.filmId);
-      userRatings = Object.fromEntries(ratings.map((r) => [r.filmId, r.score]));
+    const [favorites, ratings, views, progressRows] = await Promise.all([
+      prisma.favorite.findMany({
+        where: { userId: session.id },
+        select: { filmId: true },
+      }),
+      prisma.rating.findMany({
+        where: { userId: session.id },
+        select: { filmId: true, score: true },
+      }),
+      prisma.viewEvent.findMany({
+        where: { userId: session.id },
+        select: { filmId: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.watchProgress.findMany({
+        where: { userId: session.id },
+        select: { filmId: true, progressPercent: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+      }),
+    ]);
 
-      if (favoritesOnly) {
-        films = films.filter((f) => favoriteIds.includes(f.id));
-      }
-    } else if (favoritesOnly) {
-      films = [];
+    viewEvents = views;
+    favoriteIds = favorites.map((f) => f.filmId);
+    watchedIds = [...new Set(views.map((v) => v.filmId))];
+    userRatings = Object.fromEntries(ratings.map((r) => [r.filmId, r.score]));
+    watchProgress = Object.fromEntries(
+      progressRows.map((p) => [p.filmId, p.progressPercent])
+    );
+
+    if (favoritesOnly) {
+      films = films.filter((f) => favoriteIds.includes(f.id));
     }
 
     const featured = allFilms.find((f) => f.featured) || allFilms[0] || null;
@@ -82,21 +115,47 @@ export async function GET(request: Request) {
       .sort((a, b) => b.rating - a.rating)
       .slice(0, 10);
 
-    let continueWatching: typeof allFilms = [];
-    if (session) {
-      const views = await prisma.viewEvent.findMany({
-        where: { userId: session.id },
-        orderBy: { createdAt: "desc" },
-        select: { filmId: true },
-        take: 50,
-      });
-      const filmMap = new Map(allFilms.map((f) => [f.id, f]));
-      const seen = new Set<string>();
-      for (const view of views) {
-        if (seen.has(view.filmId)) continue;
-        seen.add(view.filmId);
+    const newReleases = [...allFilms]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, 12);
+
+    const newFilmIds = allFilms
+      .filter((f) => isNewFilm(f.createdAt))
+      .map((f) => f.id);
+
+    const recommendedForYou = getRecommendedForUser(
+      allFilms,
+      watchedIds,
+      favoriteIds,
+      userRatings
+    );
+
+    const filmMap = new Map(allFilms.map((f) => [f.id, f]));
+    const continueWatching: typeof allFilms = [];
+    const seenContinue = new Set<string>();
+
+    for (const row of progressRows) {
+      if (seenContinue.has(row.filmId)) continue;
+      if (row.progressPercent >= 95) continue;
+      const film = filmMap.get(row.filmId);
+      if (film) {
+        continueWatching.push(film);
+        seenContinue.add(row.filmId);
+      }
+      if (continueWatching.length >= 8) break;
+    }
+
+    if (continueWatching.length < 8) {
+      for (const view of viewEvents) {
+        if (seenContinue.has(view.filmId)) continue;
         const film = filmMap.get(view.filmId);
-        if (film) continueWatching.push(film);
+        if (film) {
+          continueWatching.push(film);
+          seenContinue.add(view.filmId);
+        }
         if (continueWatching.length >= 8) break;
       }
     }
@@ -111,9 +170,14 @@ export async function GET(request: Request) {
         films,
         featured,
         topRated,
+        newReleases,
+        recommendedForYou,
         continueWatching,
         byCategory,
         favoriteIds,
+        watchedIds,
+        newFilmIds,
+        watchProgress,
         userRatings,
         hasStreamingAccess: streamingAccess,
       },

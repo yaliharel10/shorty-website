@@ -12,8 +12,9 @@ import {
   Heart,
   LayoutDashboard,
   User,
+  CreditCard,
 } from "lucide-react";
-import { cn, avatarUrl, CATEGORIES } from "@/lib/utils";
+import { cn, avatarUrl, NAV_CATEGORIES } from "@/lib/utils";
 import { useScrollY } from "@/hooks/useUI";
 import { useAuth } from "./AuthProvider";
 
@@ -24,10 +25,10 @@ type NavbarProps = {
   onSearchChange: (val: string) => void;
   onShowFavorites: () => void;
   onOpenAuth: () => void;
-  onOpenProfile: () => void;
   onGoHome: () => void;
   showingFavorites?: boolean;
   onOpenSubscribe?: () => void;
+  favoriteCount?: number;
 };
 
 export function Navbar({
@@ -37,10 +38,10 @@ export function Navbar({
   onSearchChange,
   onShowFavorites,
   onOpenAuth,
-  onOpenProfile,
   onGoHome,
   showingFavorites,
   onOpenSubscribe,
+  favoriteCount = 0,
 }: NavbarProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -74,7 +75,7 @@ export function Navbar({
               Shorty<span className="text-[#ff7a18]">.</span>
             </button>
             <div className="hidden items-center gap-0.5 lg:flex">
-              {CATEGORIES.slice(0, 5).map((cat) => (
+              {NAV_CATEGORIES.map((cat) => (
                 <button
                   key={cat.id}
                   onClick={() => onCategoryChange(cat.id)}
@@ -91,7 +92,7 @@ export function Navbar({
               <button
                 onClick={onShowFavorites}
                 className={cn(
-                  "flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm transition",
+                  "relative flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm transition",
                   showingFavorites
                     ? "font-bold text-[#ff7a18]"
                     : "text-[#aaa] hover:text-white"
@@ -99,6 +100,11 @@ export function Navbar({
               >
                 <Heart className={cn("h-4 w-4", showingFavorites && "fill-[#ff7a18]")} />
                 My List
+                {favoriteCount > 0 && (
+                  <span className="ml-0.5 rounded-full bg-[#ff7a18] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {favoriteCount}
+                  </span>
+                )}
               </button>
               <Link
                 href="/browse/people"
@@ -114,12 +120,6 @@ export function Navbar({
                   Subscribe
                 </button>
               )}
-              <Link
-                href="/subscription"
-                className="rounded-lg px-3 py-1.5 text-sm text-[#aaa] transition hover:text-white"
-              >
-                Plans
-              </Link>
             </div>
           </div>
 
@@ -140,6 +140,8 @@ export function Navbar({
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 rounded-full glass px-2 py-1.5 transition hover:bg-white/10"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
                 >
                   <Image
                     src={avatarUrl(user.username, user.photoUrl)}
@@ -158,7 +160,10 @@ export function Navbar({
                       className="fixed inset-0"
                       onClick={() => setUserMenuOpen(false)}
                     />
-                    <div className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl border border-[#333] bg-[#111] shadow-xl animate-fade-in">
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full mt-2 w-52 overflow-hidden rounded-xl border border-[#333] bg-[#111] shadow-xl animate-fade-in"
+                    >
                       <div className="border-b border-[#222] px-4 py-3">
                         <p className="text-sm font-medium">
                           {user.displayName || user.username}
@@ -168,27 +173,37 @@ export function Navbar({
                         )}
                         <p className="truncate text-xs text-[#666]">{user.email}</p>
                       </div>
-                      <button
-                        onClick={() => {
-                          setUserMenuOpen(false);
-                          onOpenProfile();
-                        }}
-                        className="flex w-full items-center gap-2 px-4 py-3 text-sm text-[#ccc] transition hover:bg-[#222]"
+                      <Link
+                        href="/subscription"
+                        role="menuitem"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-[#ccc] transition hover:bg-[#222]"
+                        onClick={() => setUserMenuOpen(false)}
                       >
-                        <Settings className="h-4 w-4" />
-                        Edit Profile
-                      </button>
+                        <CreditCard className="h-4 w-4" />
+                        Manage Plan
+                      </Link>
                       <Link
                         href="/account"
+                        role="menuitem"
                         className="flex items-center gap-2 px-4 py-3 text-sm text-[#ccc] transition hover:bg-[#222]"
                         onClick={() => setUserMenuOpen(false)}
                       >
                         <User className="h-4 w-4" />
-                        Account & Password
+                        Manage Account
+                      </Link>
+                      <Link
+                        href="/account?section=security"
+                        role="menuitem"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-[#ccc] transition hover:bg-[#222]"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
                       </Link>
                       {user.role === "admin" && (
                         <Link
                           href="/admin"
+                          role="menuitem"
                           className="flex items-center gap-2 px-4 py-3 text-sm text-[#ccc] transition hover:bg-[#222]"
                           onClick={() => setUserMenuOpen(false)}
                         >
@@ -197,6 +212,7 @@ export function Navbar({
                         </Link>
                       )}
                       <button
+                        role="menuitem"
                         onClick={async () => {
                           setUserMenuOpen(false);
                           await logout();
@@ -250,7 +266,7 @@ export function Navbar({
             <p className="mb-3 text-xs font-bold tracking-widest text-[#555]">
               BROWSE
             </p>
-            {CATEGORIES.map((cat) => (
+            {NAV_CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => {
@@ -288,20 +304,41 @@ export function Navbar({
             >
               People
             </Link>
-            <Link
-              href="/subscription"
-              className="mt-2 block rounded-lg px-4 py-3 text-sm text-[#bbb] transition hover:bg-white/5"
-              onClick={() => setMenuOpen(false)}
-            >
-              Plans & Pricing
-            </Link>
+            {user && (
+              <>
+                <p className="mb-3 mt-6 text-xs font-bold tracking-widest text-[#555]">
+                  ACCOUNT
+                </p>
+                <Link
+                  href="/subscription"
+                  className="block rounded-lg px-4 py-3 text-sm text-[#bbb] transition hover:bg-white/5"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Manage Plan
+                </Link>
+                <Link
+                  href="/account"
+                  className="block rounded-lg px-4 py-3 text-sm text-[#bbb] transition hover:bg-white/5"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Manage Account
+                </Link>
+                <Link
+                  href="/account?section=security"
+                  className="block rounded-lg px-4 py-3 text-sm text-[#bbb] transition hover:bg-white/5"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Settings
+                </Link>
+              </>
+            )}
             {user && !user.hasStreamingAccess && onOpenSubscribe && (
               <button
                 onClick={() => {
                   onOpenSubscribe();
                   setMenuOpen(false);
                 }}
-                className="mt-2 block w-full rounded-lg bg-[#ff7a18] px-4 py-3 text-left text-sm font-bold"
+                className="mt-4 block w-full rounded-lg bg-[#ff7a18] px-4 py-3 text-left text-sm font-bold"
               >
                 Subscribe — from $1.99/mo
               </button>

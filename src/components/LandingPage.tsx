@@ -38,6 +38,11 @@ function LandingContent() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
   const [previewFilmId, setPreviewFilmId] = useState<string | null>(null);
+  const [catalogPreview, setCatalogPreview] = useState<{
+    filmCount: number;
+    genreCount: number;
+    featured: Pick<FilmType, "id" | "title" | "posterUrl" | "category" | "rating" | "duration">[];
+  } | null>(null);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -51,6 +56,15 @@ function LandingContent() {
       setAuthOpen(true);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    fetch("/api/catalog/preview")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.featured) setCatalogPreview(data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/monthly-free")
@@ -234,6 +248,61 @@ function LandingContent() {
           ) : null}
         </div>
       </section>
+
+      {/* Catalog preview */}
+      {catalogPreview && catalogPreview.featured.length > 0 && (
+        <section className="px-6 py-20 md:px-12">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-10 text-center">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[3px] text-[#ff7a18]">
+                Inside the library
+              </p>
+              <h2 className="text-3xl font-bold md:text-4xl">
+                {catalogPreview.filmCount}+ curated short films
+              </h2>
+              <p className="mx-auto mt-3 max-w-lg text-[#888]">
+                {catalogPreview.genreCount} genres · Top-rated picks from our catalog.
+                Sign up to unlock the full library.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+              {catalogPreview.featured.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={openSignup}
+                  className="group relative aspect-[2/3] overflow-hidden rounded-lg border border-[#222] bg-[#111] transition hover:scale-105 hover:border-[#ff7a18]/40"
+                  title={f.title}
+                >
+                  <Image
+                    src={f.posterUrl}
+                    alt={f.title}
+                    fill
+                    className="object-cover transition group-hover:brightness-75"
+                    sizes="150px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition group-hover:opacity-100" />
+                  <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 transition group-hover:opacity-100">
+                    <p className="truncate text-xs font-bold">{f.title}</p>
+                    <p className="text-[10px] text-[#aaa]">
+                      ⭐ {formatRating(f.rating)} · {f.duration}m
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="mt-10 text-center">
+              <button
+                onClick={openSignup}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#444] px-6 py-3 text-sm font-bold transition hover:bg-white/5"
+              >
+                Unlock full catalog
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Pricing */}
       <section id="pricing" className="border-y border-[#222] bg-[#0a0a0a] px-6 py-20 md:px-12">

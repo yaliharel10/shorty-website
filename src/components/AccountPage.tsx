@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CreditCard,
   Eye,
@@ -11,6 +11,7 @@ import {
   Shield,
   Trash2,
   User,
+  History,
 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
@@ -18,7 +19,7 @@ import { FormField, inputClassName } from "@/components/FormField";
 import { getPlan, trialDaysRemaining } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
-type Section = "profile" | "membership" | "payment" | "devices" | "security";
+type Section = "profile" | "membership" | "payment" | "devices" | "security" | "history";
 
 type AccountStats = {
   favorites: number;
@@ -58,6 +59,7 @@ type BillingInfo = {
 
 const SECTIONS: { id: Section; label: string; icon: typeof User }[] = [
   { id: "profile", label: "Profile", icon: User },
+  { id: "history", label: "Watch History", icon: History },
   { id: "membership", label: "Membership", icon: CreditCard },
   { id: "payment", label: "Payment", icon: CreditCard },
   { id: "devices", label: "Devices", icon: MonitorSmartphone },
@@ -83,9 +85,20 @@ function cardBrandLabel(brand: string) {
 function AccountContent() {
   const { user, loading: authLoading, refresh, logout } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [section, setSection] = useState<Section>("profile");
+  const sectionParam = searchParams.get("section");
+  const initialSection: Section =
+    sectionParam === "membership" ||
+    sectionParam === "payment" ||
+    sectionParam === "devices" ||
+    sectionParam === "security" ||
+    sectionParam === "history"
+      ? sectionParam
+      : "profile";
+
+  const [section, setSection] = useState<Section>(initialSection);
   const [stats, setStats] = useState<AccountStats | null>(null);
   const [memberSince, setMemberSince] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingInfo | null>(null);
@@ -114,12 +127,31 @@ function AccountContent() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [watchHistory, setWatchHistory] = useState<
+    { film: { id: string; title: string; posterUrl: string; category: string; rating: number; duration: number; year: number }; watchedAt: string }[]
+  >([]);
+  const [historyProgress, setHistoryProgress] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    const param = searchParams.get("section");
+    if (
+      param === "profile" ||
+      param === "membership" ||
+      param === "payment" ||
+      param === "devices" ||
+      param === "security" ||
+      param === "history"
+    ) {
+      setSection(param);
+    }
+  }, [searchParams]);
 
   const loadAccount = useCallback(async () => {
-    const [accountRes, billingRes, devicesRes] = await Promise.all([
+    const [accountRes, billingRes, devicesRes, historyRes] = await Promise.all([
       fetch("/api/account"),
       fetch("/api/account/billing"),
       fetch("/api/account/sessions"),
+      fetch("/api/account/history"),
     ]);
 
     const accountData = await accountRes.json();
@@ -133,6 +165,12 @@ function AccountContent() {
     if (devicesRes.ok) {
       const devicesData = await devicesRes.json();
       setDevices(devicesData.devices || []);
+    }
+
+    if (historyRes.ok) {
+      const historyData = await historyRes.json();
+      setWatchHistory(historyData.history || []);
+      setHistoryProgress(historyData.progress || {});
     }
   }, []);
 
@@ -689,6 +727,57 @@ function AccountContent() {
                     Your {plan.name} plan allows up to {plan.screens} simultaneous
                     stream{plan.screens !== 1 ? "s" : ""}.
                   </p>
+                )}
+              </section>
+            )}
+
+            {section === "history" && (
+              <section className="rounded-2xl border border-[#222] bg-[#111] p-6">
+                <h2 className="text-lg font-bold">Watch History</h2>
+                <p className="mt-1 text-sm text-[#888]">
+                  Films you&apos;ve opened recently, newest first.
+                </p>
+                {watchHistory.length === 0 ? (
+                  <p className="mt-6 text-sm text-[#666]">
+                    No watch history yet.{" "}
+                    <Link href="/browse" className="text-[#ff7a18] hover:underline">
+                      Start browsing
+                    </Link>
+                  </p>
+                ) : (
+                  <ul className="mt-6 space-y-3">
+                    {watchHistory.map(({ film, watchedAt }) => (
+                      <li
+                        key={`${film.id}-${watchedAt}`}
+                        className="flex items-center gap-4 rounded-xl border border-[#222] bg-[#0a0a0a] p-3"
+                      >
+                        <Link href={`/browse?watch=${film.id}`} className="shrink-0">
+                          <img
+                            src={film.posterUrl}
+                            alt={film.title}
+                            className="h-16 w-11 rounded object-cover"
+                          />
+                        </Link>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/browse?watch=${film.id}`}
+                            className="font-medium hover:text-[#ff7a18]"
+                          >
+                            {film.title}
+                          </Link>
+                          <p className="text-xs capitalize text-[#666]">
+                            {film.category} · {film.duration}m · ⭐ {film.rating.toFixed(1)}
+                          </p>
+                          <p className="text-xs text-[#555]">
+                            Watched {formatRelativeTime(watchedAt)}
+                            {historyProgress[film.id] > 0 &&
+                              historyProgress[film.id] < 95 &&
+                              ` · ${historyProgress[film.id]}% complete`}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </section>
             )}

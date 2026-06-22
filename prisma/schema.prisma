@@ -30,6 +30,7 @@ model User {
   ratings   Rating[]
   views     ViewEvent[]
   sessions  UserSession[]
+  watchProgress WatchProgress[]
 }
 
 model UserSession {
@@ -66,6 +67,7 @@ model Film {
   favorites Favorite[]
   ratings   Rating[]
   views     ViewEvent[]
+  watchProgress WatchProgress[]
 }
 
 model Person {
@@ -128,4 +130,17 @@ model ViewEvent {
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   film      Film     @relation(fields: [filmId], references: [id], onDelete: Cascade)
+}
+
+model WatchProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  filmId          String
+  progressPercent Int      @default(0)
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  film            Film     @relation(fields: [filmId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, filmId])
+  @@index([userId])
 }
