@@ -22,8 +22,12 @@ export function DemoAccessBar({ className }: DemoAccessBarProps) {
         demo1234
       </code>
       <span className="mx-2 hidden text-[#444] sm:inline">·</span>
+      <Link href="/demo" className="font-bold text-[#ff7a18] hover:underline">
+        Instant demo login
+      </Link>
+      <span className="mx-2 hidden text-[#444] sm:inline">·</span>
       <Link href="/test" className="font-bold text-[#ff7a18] hover:underline">
-        One-click test login
+        All test accounts
       </Link>
       <span className="mx-2 hidden text-[#444] md:inline">·</span>
       <Link href="/help" className="hidden text-[#666] hover:text-white md:inline">

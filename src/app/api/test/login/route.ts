@@ -10,41 +10,32 @@ import { issueAuthResponse } from "@/lib/auth-response";
 import { apiError, handleApiError } from "@/lib/api-utils";
 import { revokeUserSession } from "@/lib/sessions";
 import { userSessionSelect } from "@/lib/user-session";
-
-const ALLOWED = new Set([
-  "admin",
-  "demo",
-  "trialuser",
-  "basicuser",
-  "premiumuser",
-  "expireduser",
-  "guestplus",
-]);
-
-function testLoginEnabled() {
-  return (
-    process.env.NODE_ENV !== "production" ||
-    process.env.ENABLE_TEST_LOGIN === "true"
-  );
-}
+import {
+  defaultRedirectForUser,
+  isAllowedTestUsername,
+  isTestLoginEnabled,
+} from "@/lib/test-login";
 
 export async function GET() {
   return NextResponse.json({
-    enabled: testLoginEnabled(),
+    enabled: isTestLoginEnabled(),
     siteUrl:
       process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
       "http://localhost:3000",
+    demoLoginUrl:
+      (process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+        "http://localhost:3000") + "/demo",
   });
 }
 
 export async function POST(request: Request) {
   try {
-    if (!testLoginEnabled()) {
+    if (!isTestLoginEnabled()) {
       return apiError("Test login is disabled on this server", 403);
     }
 
     const { username } = await request.json();
-    if (!username || !ALLOWED.has(username)) {
+    if (!username || !isAllowedTestUsername(username)) {
       return apiError("Invalid test username", 400);
     }
 
@@ -58,7 +49,7 @@ export async function POST(request: Request) {
     }
 
     return issueAuthResponse(user, request, {
-      redirect: user.role === "admin" ? "/admin" : "/browse",
+      redirect: defaultRedirectForUser(username, user.role),
     });
   } catch (error) {
     return handleApiError(error, "Test login failed");
@@ -67,7 +58,7 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   try {
-    if (!testLoginEnabled()) {
+    if (!isTestLoginEnabled()) {
       return apiError("Test login is disabled", 403);
     }
     const session = await getSession();

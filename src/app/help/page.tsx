@@ -8,6 +8,10 @@ export const metadata = {
 
 const FAQ = [
   {
+    q: "Is there a one-click demo login link?",
+    a: "Yes — open /demo to sign in automatically as the demo user (Standard plan) and land on Browse. Requires ENABLE_TEST_LOGIN=true on the server.",
+  },
+  {
     q: "How do I start watching?",
     a: "Create a free account for a 7-day trial, or sign in with a demo account. Browse films and click Play to open the player.",
   },
@@ -56,8 +60,8 @@ export default function HelpPage() {
         <p className="mt-10 text-sm text-[#666]">
           Demo accounts: <code className="text-[#888]">demo / demo1234</code> (Standard plan)
           {" · "}
-          <Link href="/test" className="text-[#ff7a18] hover:underline">
-            One-click test login
+          <Link href="/demo" className="text-[#ff7a18] hover:underline">
+            Instant demo login
           </Link>
         </p>
         <p className="mt-4 text-sm text-[#555]">
