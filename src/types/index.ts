@@ -82,6 +82,7 @@ export type FilmsResponse = {
   watchProgress: Record<string, number>;
   userRatings: Record<string, number>;
   hasStreamingAccess: boolean;
+  resultCount?: number;
 };
 
 // Legacy alias

@@ -8,6 +8,12 @@ import {
   getRecommendedForUser,
   isNewFilm,
 } from "@/lib/recommendations";
+import {
+  applyFilmFilters,
+  hasActiveFilmFilters,
+  parseFilmFilters,
+  sortFilms,
+} from "@/lib/film-filters";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
 
@@ -22,6 +28,8 @@ export async function GET(request: Request) {
     const category = searchParams.get("category") || "all";
     const search = searchParams.get("search")?.trim().slice(0, 100) || "";
     const favoritesOnly = searchParams.get("favorites") === "true";
+    const filters = parseFilmFilters(searchParams);
+    const advancedFilters = hasActiveFilmFilters(filters);
     const session = await getSession();
 
     if (!session) {
@@ -32,7 +40,12 @@ export async function GET(request: Request) {
       where: { id: session.id },
       select: userSessionSelect,
     });
-    const streamingAccess = dbUser ? hasStreamingAccess(dbUser) : false;
+
+    if (!dbUser) {
+      return apiError("Your session expired — please sign in again", 401);
+    }
+
+    const streamingAccess = hasStreamingAccess(dbUser);
 
     const allFilms = await prisma.film.findMany({
       include: filmListInclude,
@@ -40,24 +53,23 @@ export async function GET(request: Request) {
     });
 
     let films = allFilms;
+    let creditFilmIds = new Set<string>();
 
     if (search) {
-      const q = search.toLowerCase();
       const creditMatches = await prisma.filmCredit.findMany({
         where: { person: { name: { contains: search } } },
         select: { filmId: true },
       });
-      const creditFilmIds = new Set(creditMatches.map((c) => c.filmId));
-      films = films.filter(
-        (f) =>
-          f.title.toLowerCase().includes(q) ||
-          f.description.toLowerCase().includes(q) ||
-          f.category.toLowerCase().includes(q) ||
-          creditFilmIds.has(f.id)
-      );
+      creditFilmIds = new Set(creditMatches.map((c) => c.filmId));
     }
 
-    if (category === "top") {
+    const useAdvancedBrowse = advancedFilters || Boolean(search);
+
+    if (useAdvancedBrowse) {
+      films = applyFilmFilters(films, filters, creditFilmIds, search);
+      const defaultSort = search ? filters.sort : filters.sort === "relevance" ? "rating" : filters.sort;
+      films = sortFilms(films, defaultSort, search);
+    } else if (category === "top") {
       films = [...films].sort((a, b) => b.rating - a.rating).slice(0, 8);
     } else if (category === "new") {
       films = [...films]
@@ -68,6 +80,7 @@ export async function GET(request: Request) {
         .slice(0, 20);
     } else if (category !== "all") {
       films = films.filter((f) => f.category === category);
+      films = sortFilms(films, "rating");
     }
 
     let favoriteIds: string[] = [];
@@ -180,6 +193,7 @@ export async function GET(request: Request) {
         watchProgress,
         userRatings,
         hasStreamingAccess: streamingAccess,
+        resultCount: films.length,
       },
       {
         headers: {

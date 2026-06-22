@@ -122,7 +122,7 @@ function SubscriptionContent() {
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-5xl px-6 py-12">
+      <main id="main-content" className="mx-auto max-w-6xl px-6 py-12">
         <div className="mb-10 text-center">
           <p className="mb-2 text-xs font-bold uppercase tracking-[3px] text-[#ff7a18]">
             Plans & Pricing

@@ -20,7 +20,16 @@ import { PersonCard } from "@/components/PersonCard";
 import { useDebouncedValue } from "@/hooks/useUI";
 import { SubscribeModal } from "@/components/SubscribeModal";
 import { BackToTop } from "@/components/BackToTop";
+import { FilmSearchFilters } from "@/components/FilmSearchFilters";
 import { KeyboardShortcuts, useKeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import {
+  activeFilterCount,
+  DEFAULT_FILM_FILTERS,
+  filmFiltersToSearchParams,
+  hasActiveFilmFilters,
+  type FilmFilterMeta,
+  type FilmFilterState,
+} from "@/lib/film-filters";
 import { trialDaysRemaining } from "@/lib/subscription";
 import type { Film, FilmsResponse, PersonSummary } from "@/types";
 
@@ -43,6 +52,9 @@ function HomeContent() {
   const [modalDetails, setModalDetails] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchPeople, setSearchPeople] = useState<PersonSummary[]>([]);
+  const [filters, setFilters] = useState<FilmFilterState>(DEFAULT_FILM_FILTERS);
+  const [filterMeta, setFilterMeta] = useState<FilmFilterMeta | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
 
   const fetchFilms = useCallback(async () => {
     setLoading(true);
@@ -53,6 +65,7 @@ function HomeContent() {
       params.set("category", category);
     }
     if (debouncedSearch) params.set("search", debouncedSearch);
+    filmFiltersToSearchParams(filters, params);
 
     try {
       const res = await fetch(`/api/films?${params}`);
@@ -64,7 +77,14 @@ function HomeContent() {
     } finally {
       setLoading(false);
     }
-  }, [category, debouncedSearch, showFavorites, toast]);
+  }, [category, debouncedSearch, showFavorites, filters, toast]);
+
+  useEffect(() => {
+    fetch("/api/films/filters")
+      .then((r) => r.json())
+      .then((json) => setFilterMeta(json))
+      .catch(() => setFilterMeta(null));
+  }, []);
 
   useEffect(() => {
     if (!debouncedSearch) {
@@ -123,6 +143,8 @@ function HomeContent() {
     setShowFavorites(false);
     setCategory("all");
     setSearch("");
+    setFilters(DEFAULT_FILM_FILTERS);
+    setFiltersExpanded(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -143,6 +165,7 @@ function HomeContent() {
   const browseCategory = (cat: string) => {
     setShowFavorites(false);
     setCategory(cat);
+    setFilters(DEFAULT_FILM_FILTERS);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -172,14 +195,25 @@ function HomeContent() {
     "sci-fi": "Sci-Fi",
   };
 
+  const filtersActive = hasActiveFilmFilters(filters);
+  const isFilteredBrowse =
+    debouncedSearch || category !== "all" || filtersActive;
+
+  const browseTitle = debouncedSearch
+    ? `Results for "${debouncedSearch}"`
+    : filtersActive && category === "all"
+      ? "Filtered films"
+      : categoryLabels[category];
+
   const showHero =
     !showFavorites &&
     !debouncedSearch &&
+    !filtersActive &&
     category === "all" &&
     data?.featured;
 
   const isBrowseHome =
-    !showFavorites && !debouncedSearch && category === "all";
+    !showFavorites && !debouncedSearch && !filtersActive && category === "all";
 
   if (authLoading || !user) {
     return (
@@ -196,9 +230,18 @@ function HomeContent() {
         onCategoryChange={(cat) => {
           setShowFavorites(false);
           setCategory(cat);
+          setFilters(DEFAULT_FILM_FILTERS);
         }}
         search={search}
         onSearchChange={setSearch}
+        filterCount={activeFilterCount(filters)}
+        onOpenFilters={() => {
+          setShowFavorites(false);
+          setFiltersExpanded(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          if (category !== "all" || debouncedSearch) return;
+          setCategory("all");
+        }}
         onShowFavorites={() => {
           if (!user) {
             setAuthOpen(true);
@@ -258,7 +301,7 @@ function HomeContent() {
 
       <main
         id="main-content"
-        className={showHero && !loading ? "relative -mt-10 pb-16 pt-4" : "pt-20 pb-16"}
+        className={showHero && !loading ? "relative z-0 pb-16 pt-10 md:pt-12" : "pt-20 pb-16"}
       >
         {loading ? (
           isBrowseHome ? (
@@ -291,13 +334,20 @@ function HomeContent() {
               </div>
             )}
           </section>
-        ) : debouncedSearch || category !== "all" ? (
+        ) : isFilteredBrowse ? (
           <section className="px-4 md:px-8 lg:px-12">
-            <h2 className="mb-6 text-2xl font-bold">
-              {debouncedSearch
-                ? `Results for "${debouncedSearch}"`
-                : categoryLabels[category]}
-            </h2>
+            <h2 className="mb-2 text-2xl font-bold">{browseTitle}</h2>
+
+            <FilmSearchFilters
+              filters={filters}
+              onChange={setFilters}
+              meta={filterMeta}
+              resultCount={data?.resultCount ?? data?.films.length}
+              hasSearch={Boolean(debouncedSearch)}
+              expanded={filtersExpanded}
+              onToggleExpanded={() => setFiltersExpanded((v) => !v)}
+            />
+
             {debouncedSearch && searchPeople.length > 0 && (
               <div className="mb-10">
                 <h3 className="mb-4 text-lg font-semibold text-[#ccc]">People</h3>
@@ -313,7 +363,10 @@ function HomeContent() {
             )}
             {data?.films.length === 0 ? (
               debouncedSearch && searchPeople.length > 0 ? null : (
-                <EmptyState variant="search" query={debouncedSearch} />
+                <EmptyState
+                  variant="search"
+                  query={debouncedSearch || "your filters"}
+                />
               )
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -329,14 +382,31 @@ function HomeContent() {
                 ))}
               </div>
             )}
-            {debouncedSearch &&
+            {(debouncedSearch || filtersActive) &&
               data?.films.length === 0 &&
               searchPeople.length === 0 && (
-                <EmptyState variant="search" query={debouncedSearch} />
+                <EmptyState
+                  variant="search"
+                  query={debouncedSearch || "your filters"}
+                />
               )}
           </section>
         ) : (
           <>
+            <section className="px-4 pb-4 pt-2 md:px-8 lg:px-12">
+              <FilmSearchFilters
+                filters={filters}
+                onChange={(next) => {
+                  setFilters(next);
+                  if (hasActiveFilmFilters(next)) {
+                    setFiltersExpanded(true);
+                  }
+                }}
+                meta={filterMeta}
+                expanded={filtersExpanded}
+                onToggleExpanded={() => setFiltersExpanded((v) => !v)}
+              />
+            </section>
             {data?.continueWatching && data.continueWatching.length > 0 && (
               <FilmRow
                 title="Continue Watching"

@@ -42,7 +42,7 @@ export function Hero({
       <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/65 to-black/25" />
       <div className="hero-gradient absolute inset-0" />
 
-      <div className="absolute bottom-0 left-0 right-0 z-10 p-6 pb-10 md:p-10 md:pb-14 lg:p-14 lg:pb-16">
+      <div className="absolute bottom-0 left-0 right-0 z-20 p-6 pb-10 md:p-10 md:pb-14 lg:p-14 lg:pb-16">
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <p className="inline-block rounded-full bg-[#ff7a18]/20 px-3 py-1 text-xs font-bold uppercase tracking-[2px] text-[#ff7a18]">

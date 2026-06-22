@@ -53,7 +53,12 @@ export async function GET(
         where: { id: session.id },
         select: userSessionSelect,
       });
-      canWatch = canWatch || (dbUser ? hasStreamingAccess(dbUser) : false);
+
+      if (!dbUser) {
+        return apiError("Your session expired — please sign in again", 401);
+      }
+
+      canWatch = canWatch || hasStreamingAccess(dbUser);
     }
 
     if (!canWatch) {

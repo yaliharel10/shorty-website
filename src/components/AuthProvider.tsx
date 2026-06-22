@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const { data } = await fetchJson<{ user: User | null }>(
+      const { data } = await fetchJson<{ user: User | null; code?: string }>(
         "/api/auth/me",
         { credentials: "same-origin" },
         authCheckTimeoutMs()

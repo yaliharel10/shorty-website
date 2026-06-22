@@ -97,7 +97,8 @@ export function hasStreamingAccess(user: AccessUser): boolean {
   if (
     user.subscriptionTier !== "none" &&
     (user.subscriptionStatus === "active" ||
-      user.subscriptionStatus === "canceled") &&
+      user.subscriptionStatus === "canceled" ||
+      user.subscriptionStatus == null) &&
     (!user.subscriptionEndsAt || user.subscriptionEndsAt > now)
   ) {
     return true;

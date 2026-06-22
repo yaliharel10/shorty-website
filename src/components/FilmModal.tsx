@@ -35,7 +35,7 @@ export function FilmModal({
   autoplayVideo = true,
   scrollToDetails = false,
 }: FilmModalProps) {
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const { toast } = useToast();
   const panelRef = useRef<HTMLDivElement>(null);
   const detailsRef = useRef<HTMLDivElement>(null);
@@ -64,26 +64,54 @@ export function FilmModal({
     setSubscriptionRequired(false);
     openedAtRef.current = Date.now();
 
-    fetch(`/api/films/${filmId}`)
-      .then(async (r) => {
-        const data = await r.json();
-        if (r.status === 403 && data.code === "SUBSCRIPTION_REQUIRED" && data.film) {
-          setFilm(data.film);
-          setSubscriptionRequired(true);
-          return;
+    let cancelled = false;
+
+    const loadFilm = async (retryAfterRefresh = false) => {
+      const res = await fetch(`/api/films/${filmId}`, { credentials: "same-origin" });
+      const data = await res.json();
+
+      if (cancelled) return;
+
+      if (res.status === 401) {
+        await refresh();
+        if (!retryAfterRefresh) {
+          return loadFilm(true);
         }
-        if (data.film) {
-          setFilm(data.film);
-          setIsFavorite(data.isFavorite);
-          setHasWatched(Boolean(data.hasWatched));
-          setProgressPercent(data.progressPercent ?? 0);
-          setUserRating(data.userRating || 0);
-          setSimilar(data.similar ?? []);
+        toast("Please sign in again to watch", "info");
+        return;
+      }
+
+      if (res.status === 403 && data.code === "SUBSCRIPTION_REQUIRED" && data.film) {
+        if (!retryAfterRefresh && user?.hasStreamingAccess) {
+          await refresh();
+          return loadFilm(true);
         }
-      })
+        setFilm(data.film);
+        setSubscriptionRequired(true);
+        return;
+      }
+
+      if (data.film) {
+        setFilm(data.film);
+        setIsFavorite(data.isFavorite);
+        setHasWatched(Boolean(data.hasWatched));
+        setProgressPercent(data.progressPercent ?? 0);
+        setUserRating(data.userRating || 0);
+        setSimilar(data.similar ?? []);
+        setSubscriptionRequired(false);
+      }
+    };
+
+    loadFilm()
       .catch(() => toast("Failed to load film", "error"))
-      .finally(() => setLoading(false));
-  }, [filmId, toast]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filmId, toast, refresh, user?.hasStreamingAccess]);
 
   useEffect(() => {
     if (!loading && scrollToDetails && detailsRef.current) {

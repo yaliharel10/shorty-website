@@ -71,8 +71,14 @@ export function SubscribeModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Choose your plan">
-      <div className="max-h-[70vh] overflow-y-auto px-1">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Choose your plan"
+      size="lg"
+      className="max-w-6xl"
+    >
+      <div className="max-h-[75vh] overflow-y-auto">
         <p className="mb-6 text-sm text-[#888]">
           Stream the full Shorty library for a fraction of Netflix pricing.
           {stripeEnabled

@@ -11,6 +11,7 @@ import {
   Settings,
   Heart,
   LayoutDashboard,
+  SlidersHorizontal,
   User,
   CreditCard,
 } from "lucide-react";
@@ -29,6 +30,8 @@ type NavbarProps = {
   showingFavorites?: boolean;
   onOpenSubscribe?: () => void;
   favoriteCount?: number;
+  filterCount?: number;
+  onOpenFilters?: () => void;
 };
 
 export function Navbar({
@@ -42,6 +45,8 @@ export function Navbar({
   showingFavorites,
   onOpenSubscribe,
   favoriteCount = 0,
+  filterCount = 0,
+  onOpenFilters,
 }: NavbarProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -124,6 +129,27 @@ export function Navbar({
           </div>
 
           <div className="flex items-center gap-3">
+            {onOpenFilters && (
+              <button
+                type="button"
+                onClick={onOpenFilters}
+                className={cn(
+                  "relative hidden items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition sm:inline-flex",
+                  filterCount > 0
+                    ? "border-[#ff7a18]/50 bg-[#ff7a18]/10 text-[#ff7a18]"
+                    : "border-[#333] bg-[#1a1a1a]/80 text-[#aaa] hover:border-[#444] hover:text-white"
+                )}
+                aria-label="Open filters"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                <span className="hidden md:inline">Filters</span>
+                {filterCount > 0 && (
+                  <span className="rounded-full bg-[#ff7a18] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {filterCount}
+                  </span>
+                )}
+              </button>
+            )}
             <div className="relative hidden sm:block">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666]" />
               <input
