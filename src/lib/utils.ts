@@ -27,37 +27,55 @@ export function youtubeEmbedUrl(url: string, autoplay = false) {
   return autoplay ? `${base}?autoplay=1&rel=0` : base;
 }
 
-/** Fetch JSON with timeout — Render free tier can take 30–60s to wake from sleep. */
+/** Fetch JSON with a hard timeout (Render free tier can take 30–60s to wake). */
 export async function fetchJson<T = Record<string, unknown>>(
   url: string,
   options: RequestInit = {},
   timeoutMs = 60000
 ): Promise<{ res: Response; data: T }> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let hardTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    hardTimeout = setTimeout(() => {
+      controller.abort();
+      reject(new DOMException("Aborted", "AbortError"));
+    }, timeoutMs);
+  });
 
   try {
-    const res = await fetch(url, {
-      ...options,
-      credentials: "same-origin",
-      signal: controller.signal,
-    });
-    let data: T;
-    try {
-      data = (await res.json()) as T;
-    } catch {
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        throw new Error(
-          res.status === 401 || res.status === 403
-            ? "Site access is blocked — disable Vercel Deployment Protection in project settings"
-            : `Server error (${res.status}) — try again or check /api/health`
-        );
-      }
-      data = {} as T;
-    }
-    return { res, data };
+    return await Promise.race([
+      (async () => {
+        const res = await fetch(url, {
+          ...options,
+          credentials: "same-origin",
+          signal: controller.signal,
+        });
+        let data: T;
+        try {
+          data = (await res.json()) as T;
+        } catch {
+          const contentType = res.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            if (res.status === 401 || res.status === 403) {
+              throw new Error(
+                "Site access is blocked — disable Vercel Deployment Protection in project settings"
+              );
+            }
+            if (res.status === 502 || res.status === 503) {
+              throw new Error(
+                "Server unavailable — confirm you're on the correct site URL from your Vercel dashboard"
+              );
+            }
+            throw new Error(`Server error (${res.status}) — try again or check /api/health`);
+          }
+          data = {} as T;
+        }
+        return { res, data };
+      })(),
+      timeoutPromise,
+    ]);
   } finally {
-    clearTimeout(timeout);
+    if (hardTimeout) clearTimeout(hardTimeout);
   }
 }

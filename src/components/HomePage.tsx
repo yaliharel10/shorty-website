@@ -354,10 +354,6 @@ function HomeContent() {
       <AuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
-        onSuccess={() => {
-          toast("Welcome to Shorty!", "success");
-          fetchFilms();
-        }}
       />
       <ProfileModal
         open={profileOpen}

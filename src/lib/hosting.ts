@@ -10,12 +10,12 @@ export function isSlowHost() {
 
 /** Initial auth check on page load — keep short so the UI appears quickly. */
 export function authCheckTimeoutMs() {
-  return isSlowHost() ? 30000 : 8000;
+  return isSlowHost() ? 30000 : 5000;
 }
 
 /** Login / register submit. */
 export function loginTimeoutMs() {
-  return isSlowHost() ? 90000 : 20000;
+  return isSlowHost() ? 90000 : 15000;
 }
 
 export function defaultFetchTimeoutMs() {

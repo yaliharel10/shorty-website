@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+/** Edge = fast cold starts; JWT-only, no DB. */
+export const runtime = "edge";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { sessionToClientUser } from "@/lib/client-user";

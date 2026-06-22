@@ -72,13 +72,7 @@ function LandingContent() {
     setAuthOpen(true);
   };
 
-  if (authLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080808]">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
-      </div>
-    );
-  }
+  // Don't block the landing page on auth check — redirect logged-in users in useEffect above.
 
   if (user) {
     return (
@@ -346,10 +340,6 @@ function LandingContent() {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         defaultMode={authMode}
-        onSuccess={() => {
-          toast(`Welcome! Your ${TRIAL_DAYS}-day free trial starts now.`, "success");
-          router.push("/browse");
-        }}
       />
     </div>
   );

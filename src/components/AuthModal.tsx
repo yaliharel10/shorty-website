@@ -1,100 +1,67 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useAuth } from "./AuthProvider";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
-import { fetchJson } from "@/lib/utils";
-import { loginTimeoutMs } from "@/lib/hosting";
-import type { User } from "@/types";
+import {
+  loginAction,
+  registerAction,
+  type AuthActionState,
+} from "@/app/actions/auth";
 
 type AuthModalProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
   defaultMode?: "login" | "register";
+  redirectTo?: string;
 };
 
-type AuthResponse = { user?: User; error?: string };
+const initialState: AuthActionState = {};
 
 export function AuthModal({
   open,
   onClose,
-  onSuccess,
   defaultMode = "login",
+  redirectTo = "/browse",
 }: AuthModalProps) {
   const [isLogin, setIsLogin] = useState(defaultMode === "login");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingHint, setLoadingHint] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-  const { setUser } = useAuth();
+  const [clientError, setClientError] = useState("");
+
+  const [loginState, loginFormAction, loginPending] = useActionState(
+    loginAction,
+    initialState
+  );
+  const [registerState, registerFormAction, registerPending] = useActionState(
+    registerAction,
+    initialState
+  );
+
+  const pending = isLogin ? loginPending : registerPending;
+  const actionError = isLogin ? loginState.error : registerState.error;
+  const error = clientError || actionError || "";
 
   useEffect(() => {
     if (open) {
       setIsLogin(defaultMode === "login");
-      setError("");
-      setLoadingHint("");
+      setClientError("");
+      fetch("/api/health", { cache: "no-store" }).catch(() => {});
     }
   }, [open, defaultMode]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    setLoadingHint("Signing in...");
-
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    setClientError("");
     const form = new FormData(e.currentTarget);
-    const identifier = (form.get("identifier") as string).trim();
-    const email = (form.get("email") as string).trim();
     const password = form.get("password") as string;
     const confirm = form.get("confirm") as string;
 
     if (!isLogin && password !== confirm) {
-      setError("Passwords do not match");
-      setLoading(false);
-      setLoadingHint("");
-      return;
-    }
-
-    try {
-      const { res, data } = await fetchJson<AuthResponse>(
-        "/api/auth",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(
-            isLogin
-              ? { action: "login", identifier, password }
-              : { action: "register", username: identifier, email, password }
-          ),
-        },
-        loginTimeoutMs()
-      );
-
-      if (!res.ok) {
-        throw new Error(data.error || "Authentication failed");
-      }
-
-      if (data.user) {
-        setUser(data.user);
-      }
-
-      setLoadingHint("Success! Redirecting...");
-      onSuccess();
-      onClose();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Request timed out. Check /api/health — Turso env vars may be missing on Vercel.");
-      } else {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      }
-    } finally {
-      setLoading(false);
-      setLoadingHint("");
+      e.preventDefault();
+      setClientError("Passwords do not match");
     }
   };
 
@@ -110,7 +77,14 @@ export function AuthModal({
       }
       size="sm"
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+      <form
+        action={isLogin ? loginFormAction : registerFormAction}
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-4"
+        noValidate
+      >
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+
         <FormField
           id="auth-identifier"
           label={isLogin ? "Username or email" : "Username"}
@@ -123,7 +97,7 @@ export function AuthModal({
             autoComplete={isLogin ? "username" : "username"}
             className={inputClassName}
             placeholder={isLogin ? "Username or email" : "Choose a username"}
-            disabled={loading}
+            disabled={pending}
           />
         </FormField>
 
@@ -137,7 +111,7 @@ export function AuthModal({
               autoComplete="email"
               className={inputClassName}
               placeholder="you@example.com"
-              disabled={loading}
+              disabled={pending}
             />
           </FormField>
         )}
@@ -157,7 +131,7 @@ export function AuthModal({
               autoComplete={isLogin ? "current-password" : "new-password"}
               className={inputClassName}
               placeholder="Password"
-              disabled={loading}
+              disabled={pending}
             />
             <button
               type="button"
@@ -197,13 +171,13 @@ export function AuthModal({
               autoComplete="new-password"
               className={inputClassName}
               placeholder="Confirm password"
-              disabled={loading}
+              disabled={pending}
             />
           </FormField>
         )}
 
-        {loadingHint && (
-          <p className="text-center text-xs text-[#888]">{loadingHint}</p>
+        {pending && (
+          <p className="text-center text-xs text-[#888]">Signing in...</p>
         )}
 
         {error && (
@@ -214,10 +188,10 @@ export function AuthModal({
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={pending}
           className="rounded-lg bg-[#ff7a18] py-3 text-sm font-bold transition hover:bg-[#ff9533] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7a18] disabled:opacity-50"
         >
-          {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+          {pending ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
         </button>
       </form>
 
@@ -227,7 +201,7 @@ export function AuthModal({
           type="button"
           onClick={() => {
             setIsLogin(!isLogin);
-            setError("");
+            setClientError("");
           }}
           className="font-bold text-[#ff7a18] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7a18]"
         >

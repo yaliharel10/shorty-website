@@ -218,10 +218,7 @@ function SubscriptionContent() {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         defaultMode="register"
-        onSuccess={() => {
-          toast(`Welcome! Enjoy your ${TRIAL_DAYS}-day free trial.`, "success");
-          setSubscribeOpen(false);
-        }}
+        redirectTo="/subscription"
       />
       <SubscribeModal
         open={subscribeOpen}

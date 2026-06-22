@@ -101,7 +101,7 @@ turso db tokens create shorty         # → TURSO_AUTH_TOKEN
 | `TURSO_DATABASE_URL` | `libsql://shorty-….turso.io` |
 | `TURSO_AUTH_TOKEN` | token from step 1 |
 | `JWT_SECRET` | long random string (32+ chars) |
-| `NEXT_PUBLIC_SITE_URL` | your Vercel URL, e.g. `https://shorty.vercel.app` |
+| `NEXT_PUBLIC_SITE_URL` | your Vercel URL, e.g. `https://shorty-website-five.vercel.app` |
 | `ENABLE_TEST_LOGIN` | `true` (optional, for `/test`) |
 | Stripe vars | same as Render section below |
 
@@ -241,4 +241,6 @@ Before deploying:
 → Auth is rate-limited to 10 attempts per 15 minutes per IP.
 
 **Login stuck on “Please wait…” / “Server is waking up…”**
-→ You’re on **Render free tier**, which sleeps after idle time. Redeploy to **Vercel + Turso** (see above) for instant login, or wait ~30–60s and try again.
+→ Use your **actual Vercel production URL** (e.g. `https://shorty-website-five.vercel.app`). Wrong domains like `shorty.vercel.app` return 502 and login will fail.
+→ On **Render free tier**, the server sleeps after idle time — redeploy to **Vercel + Turso** (see above) for fast login, or wait ~30–60s and try again.
+→ Check **Vercel → Settings → Deployment Protection** is off for Production (otherwise API routes return 401).
