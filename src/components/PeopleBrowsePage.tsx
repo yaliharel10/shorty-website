@@ -2,28 +2,22 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { useSearchParams } from "next/navigation";
+import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
 import { PersonCard } from "@/components/PersonCard";
+import { DemoAccessBar } from "@/components/DemoAccessBar";
+import { SiteFooter } from "@/components/SiteFooter";
 import { PERSON_ROLES } from "@/lib/person-utils";
 import { cn } from "@/lib/utils";
 import type { PersonSummary } from "@/types";
 
 function PeopleBrowseContent() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [people, setPeople] = useState<(PersonSummary & { _count?: { credits: number } })[]>([]);
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [role, setRole] = useState(searchParams.get("role") || "");
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/?signin=1");
-    }
-  }, [authLoading, user, router]);
 
   const fetchPeople = useCallback(async () => {
     setLoading(true);
@@ -37,19 +31,11 @@ function PeopleBrowseContent() {
   }, [search, role]);
 
   useEffect(() => {
-    if (user) fetchPeople();
-  }, [fetchPeople, user]);
-
-  if (authLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080808]">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
-      </div>
-    );
-  }
+    fetchPeople();
+  }, [fetchPeople]);
 
   return (
-    <div className="min-h-screen bg-[#080808]">
+    <div className="flex min-h-screen flex-col bg-[#080808] text-white">
       <header className="border-b border-[#222] px-6 py-5">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           <div>
@@ -61,10 +47,18 @@ function PeopleBrowseContent() {
               Search cast, directors, writers, and crew
             </p>
           </div>
+          <Link
+            href="/?signin=1"
+            className="shrink-0 rounded-lg bg-[#ff7a18] px-4 py-2 text-sm font-bold hover:bg-[#ff9533]"
+          >
+            Sign in
+          </Link>
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-6xl px-6 py-8">
+      <DemoAccessBar />
+
+      <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row">
           <input
             type="search"
@@ -77,6 +71,7 @@ function PeopleBrowseContent() {
 
         <div className="mb-8 flex flex-wrap gap-2">
           <button
+            type="button"
             onClick={() => setRole("")}
             className={cn(
               "rounded-full px-4 py-1.5 text-sm transition",
@@ -90,6 +85,7 @@ function PeopleBrowseContent() {
           {PERSON_ROLES.map((r) => (
             <button
               key={r.id}
+              type="button"
               onClick={() => setRole(r.id)}
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm transition",
@@ -122,6 +118,8 @@ function PeopleBrowseContent() {
           </div>
         )}
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

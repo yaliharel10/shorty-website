@@ -31,6 +31,8 @@ import {
   type FilmFilterState,
 } from "@/lib/film-filters";
 import { trialDaysRemaining } from "@/lib/subscription";
+import { GuestBrowseContent } from "@/components/GuestBrowsePage";
+import { SiteFooter } from "@/components/SiteFooter";
 import type { Film, FilmsResponse, PersonSummary } from "@/types";
 
 function HomeContent() {
@@ -98,12 +100,6 @@ function HomeContent() {
   }, [debouncedSearch]);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace("/?signin=1");
-    }
-  }, [authLoading, user, router]);
-
-  useEffect(() => {
     if (searchParams.get("signin") === "1" && !user) {
       setAuthOpen(true);
     }
@@ -127,17 +123,6 @@ function HomeContent() {
   useEffect(() => {
     fetchFilms();
   }, [fetchFilms]);
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "f" && document.activeElement?.tagName !== "INPUT") {
-        e.preventDefault();
-        document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus();
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
 
   const goHome = () => {
     setShowFavorites(false);
@@ -195,6 +180,22 @@ function HomeContent() {
     "sci-fi": "Sci-Fi",
   };
 
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === "INPUT") return;
+      if (e.key === "f" || e.key === "/") {
+        e.preventDefault();
+        document.querySelector<HTMLInputElement>('input[placeholder*="Search"]')?.focus();
+      }
+      if (e.key === "h" && e.metaKey) {
+        e.preventDefault();
+        goHome();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
+
   const filtersActive = hasActiveFilmFilters(filters);
   const isFilteredBrowse =
     debouncedSearch || category !== "all" || filtersActive;
@@ -215,12 +216,16 @@ function HomeContent() {
   const isBrowseHome =
     !showFavorites && !debouncedSearch && !filtersActive && category === "all";
 
-  if (authLoading || !user) {
+  if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080808]">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
       </div>
     );
+  }
+
+  if (!user) {
+    return <GuestBrowseContent />;
   }
 
   return (
@@ -471,27 +476,22 @@ function HomeContent() {
         )}
       </main>
 
-      <footer className="border-t border-[#222] px-4 py-10 text-center md:px-8">
-        <p className="text-sm text-[#666]">
-          Shorty<span className="text-[#ff7a18]">.</span> — Premium short films,
-          curated for you.
-        </p>
-        <p className="mt-2 text-xs text-[#444]">
-          Press{" "}
-          <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
-            F
-          </kbd>{" "}
-          to search ·{" "}
-          <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
-            Esc
-          </kbd>{" "}
-          to close player ·{" "}
-          <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
-            ?
-          </kbd>{" "}
-          for shortcuts
-        </p>
-      </footer>
+      <div className="border-t border-[#222] px-4 py-4 text-center text-xs text-[#444] md:px-8">
+        Press{" "}
+        <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
+          F
+        </kbd>{" "}
+        or{" "}
+        <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
+          /
+        </kbd>{" "}
+        to search ·{" "}
+        <kbd className="rounded border border-[#333] px-1.5 py-0.5 font-mono text-[#888]">
+          ?
+        </kbd>{" "}
+        for shortcuts
+      </div>
+      <SiteFooter />
 
       <BackToTop />
 

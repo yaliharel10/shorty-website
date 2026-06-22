@@ -18,6 +18,8 @@ import { ToastProvider, useToast } from "@/components/Toast";
 import { AuthModal } from "@/components/AuthModal";
 import { FilmModal } from "@/components/FilmModal";
 import { PricingPlans } from "@/components/PricingPlans";
+import { DemoAccessBar } from "@/components/DemoAccessBar";
+import { SiteFooter } from "@/components/SiteFooter";
 import { formatRating } from "@/lib/utils";
 import { TRIAL_DAYS, SUBSCRIPTION_PLANS } from "@/lib/subscription";
 import type { Film as FilmType } from "@/types";
@@ -129,6 +131,8 @@ function LandingContent() {
           </div>
         </div>
       </header>
+
+      <DemoAccessBar />
 
       {/* Hero */}
       <section className="relative flex min-h-screen items-center overflow-hidden">
@@ -395,9 +399,7 @@ function LandingContent() {
         </div>
       </section>
 
-      <footer className="border-t border-[#222] px-6 py-8 text-center text-sm text-[#555]">
-        Shorty<span className="text-[#ff7a18]">.</span> — Premium short films
-      </footer>
+      <SiteFooter />
 
       <FilmModal
         filmId={previewFilmId}

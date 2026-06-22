@@ -209,14 +209,32 @@ Use `4242 4242 4242 4242`, any future expiry, any CVC.
 
 ## Release checklist
 
-Before deploying:
+Before going live:
 
-- [ ] Set a strong `JWT_SECRET` in production
-- [ ] Set `NEXT_PUBLIC_SITE_URL` to your domain
-- [ ] Remove or change demo accounts in production
-- [ ] Consider PostgreSQL instead of SQLite for multi-instance hosting
+- [ ] Set a strong `JWT_SECRET` in production (Vercel build fails without it)
+- [ ] Set `NEXT_PUBLIC_SITE_URL` to your production domain (e.g. `https://shorty-website-five.vercel.app`)
+- [ ] Configure Turso (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`) on Vercel
+- [ ] Disable **Vercel Deployment Protection** on Production (or login/API will fail)
+- [ ] Set `ENABLE_TEST_LOGIN=true` if you want `/test` one-click demo logins
+- [ ] Configure Stripe keys for live billing, or leave unset for demo mode
 - [ ] Run `npm run build` successfully
+- [ ] Test guest browse: `/browse` and `/films/{id}` without signing in
+- [ ] Test subscriber flow: `demo` / `demo1234` on `/browse`
 - [ ] Test on mobile, tablet, and desktop
+
+### Public URLs for testers (no login)
+
+| URL | Purpose |
+|-----|---------|
+| `/` | Landing + monthly free film preview |
+| `/browse` | Full catalog browse as guest |
+| `/films/{id}` | Shareable film page |
+| `/browse/people` | Cast & crew directory |
+| `/subscription` | Plans & pricing |
+| `/help` | FAQ + demo credentials |
+| `/test` | One-click demo logins (requires `ENABLE_TEST_LOGIN=true`) |
+
+**Production:** [https://shorty-website-five.vercel.app](https://shorty-website-five.vercel.app)
 
 ## Tech stack
 
@@ -226,8 +244,10 @@ Before deploying:
 
 ## Keyboard shortcuts
 
-- `F` — Focus search
+- `F` or `/` — Focus search
+- `⌘H` — Go to browse home (logged in)
 - `Esc` — Close player / dialog
+- `?` — Show all shortcuts
 
 ## Troubleshooting
 

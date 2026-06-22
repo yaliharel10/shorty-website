@@ -10,8 +10,10 @@ type KeyboardShortcutsProps = {
 
 const SHORTCUTS = [
   { keys: ["F"], description: "Focus search" },
+  { keys: ["/"], description: "Focus search (alternate)" },
   { keys: ["Esc"], description: "Close player or dialog" },
   { keys: ["?"], description: "Show keyboard shortcuts" },
+  { keys: ["⌘", "H"], description: "Go to browse home (Mac)" },
 ];
 
 export function KeyboardShortcuts({ open, onClose }: KeyboardShortcutsProps) {

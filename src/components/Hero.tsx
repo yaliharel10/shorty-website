@@ -147,7 +147,7 @@ export function FilmRow({
             </button>
           )}
         </div>
-        <div className="flex gap-1 opacity-0 transition group-hover/row:opacity-100">
+        <div className="flex gap-1 opacity-100 transition lg:opacity-0 lg:group-hover/row:opacity-100">
           <button
             onClick={() => scroll("left")}
             className="rounded-full glass p-2 transition hover:bg-white/10"
@@ -166,7 +166,13 @@ export function FilmRow({
       </div>
       <div ref={rowRef} className="film-row px-4 md:px-8 lg:px-12">
         {films.map((film) => (
-          <div key={film.id} onClick={() => onFilmClick(film)}>
+          <button
+            key={film.id}
+            type="button"
+            onClick={() => onFilmClick(film)}
+            className="shrink-0 border-0 bg-transparent p-0 text-left"
+            aria-label={`Open ${film.title}`}
+          >
             <FilmCardInline
               film={film}
               isFavorite={favoriteIds.includes(film.id)}
@@ -175,7 +181,7 @@ export function FilmRow({
               isNew={newFilmIds.includes(film.id)}
               progressPercent={watchProgress[film.id] ?? 0}
             />
-          </div>
+          </button>
         ))}
       </div>
     </section>

@@ -13,8 +13,8 @@ export function ShareButton({ filmId, title, className }: ShareButtonProps) {
   const { toast } = useToast();
 
   const share = async () => {
-    const url = `${window.location.origin}/browse?watch=${filmId}`;
-    const text = `Watch "${title}" on Shorty`;
+    const url = `${window.location.origin}/films/${filmId}`;
+    const text = `Watch "${title}" on Shorty — premium short films`;
 
     try {
       if (navigator.share) {

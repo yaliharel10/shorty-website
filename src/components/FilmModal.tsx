@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Lock } from "lucide-react";
+import { X, Lock, SkipForward } from "lucide-react";
 import { youtubeEmbedUrl } from "@/lib/utils";
 import { useBodyScrollLock, useFocusTrap } from "@/hooks/useUI";
 import type { Film } from "@/types";
@@ -312,12 +312,30 @@ export function FilmModal({
 
               {!guestPreview && similar.length > 0 && onOpenFilm && (
                 <section className="mt-10 border-t border-[#222] pt-8">
-                  <h3 className="mb-4 text-lg font-bold">More like this</h3>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-bold">More like this</h3>
+                    {!subscriptionRequired && (
+                      <button
+                        type="button"
+                        onClick={() => onOpenFilm(similar[0].id)}
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#444] px-4 py-2 text-sm font-bold transition hover:bg-white/5"
+                      >
+                        <SkipForward className="h-4 w-4" />
+                        Watch next: {similar[0].title}
+                      </button>
+                    )}
+                  </div>
                   <div className="film-row pb-2">
                     {similar.map((item) => (
-                      <div key={item.id} onClick={() => onOpenFilm(item.id)}>
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => onOpenFilm(item.id)}
+                        className="shrink-0 border-0 bg-transparent p-0"
+                        aria-label={`Open ${item.title}`}
+                      >
                         <FilmCardInline film={item} />
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </section>

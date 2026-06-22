@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ "${VERCEL:-}" = "1" ] && [ -z "${JWT_SECRET:-}" ]; then
+  echo "ERROR: JWT_SECRET must be set in Vercel environment variables for production."
+  exit 1
+fi
+
 npx prisma generate
 
 if [ -n "${TURSO_DATABASE_URL:-}" ] && [ -n "${TURSO_AUTH_TOKEN:-}" ]; then
