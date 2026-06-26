@@ -23,6 +23,8 @@ function subscriptionFieldsChanged(
     fresh.subscriptionStatus !== jwt.subscriptionStatus ||
     fresh.subscriptionEndsAt !== jwt.subscriptionEndsAt ||
     fresh.trialEndsAt !== jwt.trialEndsAt ||
+    fresh.emailVerified !== jwt.emailVerified ||
+    fresh.onboardingCompleted !== jwt.onboardingCompleted ||
     fresh.role !== jwt.role ||
     fresh.accessLabel !== jwt.accessLabel
   );

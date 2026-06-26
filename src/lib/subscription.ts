@@ -1,4 +1,5 @@
 import type { User } from "@prisma/client";
+import { requiresEmailVerification } from "@/lib/email-verification";
 
 export type PlanId = "basic" | "standard" | "premium";
 
@@ -71,6 +72,7 @@ export function getPlan(planId: string): SubscriptionPlan | undefined {
 type AccessUser = Pick<
   User,
   | "role"
+  | "emailVerified"
   | "subscriptionTier"
   | "subscriptionStatus"
   | "subscriptionEndsAt"
@@ -79,6 +81,10 @@ type AccessUser = Pick<
 
 export function hasStreamingAccess(user: AccessUser): boolean {
   if (user.role === "admin") return true;
+
+  if (requiresEmailVerification(user.emailVerified)) {
+    return false;
+  }
 
   const now = new Date();
 

@@ -88,6 +88,32 @@ export const TURSO_SCHEMA_PATCHES: string[] = [
     "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
   `INSERT OR IGNORE INTO "PlatformSettings" ("id", "creatorPoolPercent", "updatedAt") VALUES ('default', 50, CURRENT_TIMESTAMP)`,
+
+  // Production user fields
+  `ALTER TABLE "User" ADD COLUMN "googleId" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "User_googleId_key" ON "User"("googleId")`,
+  `ALTER TABLE "User" ADD COLUMN "emailVerified" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "User" ADD COLUMN "emailVerificationToken" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "User_emailVerificationToken_key" ON "User"("emailVerificationToken")`,
+  `ALTER TABLE "User" ADD COLUMN "emailVerificationExpiresAt" DATETIME`,
+  `ALTER TABLE "User" ADD COLUMN "onboardingCompleted" BOOLEAN NOT NULL DEFAULT false`,
+
+  // Kids-friendly content flag
+  `ALTER TABLE "Film" ADD COLUMN "kidsFriendly" BOOLEAN NOT NULL DEFAULT true`,
+
+  // Concurrent playback tracking
+  `CREATE TABLE IF NOT EXISTS "PlaybackSession" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "filmId" TEXT NOT NULL,
+    "sessionToken" TEXT NOT NULL,
+    "lastActiveAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" DATETIME NOT NULL,
+    CONSTRAINT "PlaybackSession_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "PlaybackSession_filmId_fkey" FOREIGN KEY ("filmId") REFERENCES "Film" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PlaybackSession_sessionToken_key" ON "PlaybackSession"("sessionToken")`,
+  `CREATE INDEX IF NOT EXISTS "PlaybackSession_userId_lastActiveAt_idx" ON "PlaybackSession"("userId", "lastActiveAt")`,
 ];
 
 export function isIgnorablePatchError(message: string) {

@@ -19,29 +19,63 @@ export default function TermsPage() {
         <p className="mt-2 text-sm text-[#666]">Last updated: June 2026</p>
         <div className="mt-8 space-y-6 text-[#bbb]">
           <p>
-            By using Shorty you agree to these terms. This is a demonstration product — content
-            is licensed for portfolio/demo use via third-party embeds and placeholders.
+            By accessing or using Shorty (&quot;the Service&quot;), you agree to these Terms of
+            Service. If you do not agree, do not use the Service.
           </p>
           <section>
-            <h2 className="text-lg font-bold text-white">Subscriptions</h2>
-            <p className="mt-2">
-              Paid plans renew monthly unless canceled. Free trials convert to paid tiers unless
-              you cancel before the trial ends. Refunds follow Stripe policies when live billing
-              is enabled.
+            <h2 className="text-lg font-bold text-white">The Service</h2>
+            <p className="mt-2 text-sm">
+              Shorty provides on-demand streaming of curated short films. Content is licensed for
+              distribution through the platform. Availability may vary by region and device.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">Accounts</h2>
+            <p className="mt-2 text-sm">
+              You must provide accurate information and keep your credentials secure. You are
+              responsible for activity under your account. One household may use multiple profiles;
+              concurrent streams are limited by your subscription plan.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">Subscriptions & billing</h2>
+            <p className="mt-2 text-sm">
+              Paid plans renew monthly unless canceled before the renewal date. Free trials convert
+              to paid subscriptions unless canceled. Payments are processed by Stripe. Refunds are
+              handled per Stripe policy and applicable law.
             </p>
           </section>
           <section>
             <h2 className="text-lg font-bold text-white">Acceptable use</h2>
-            <p className="mt-2">
-              Do not share accounts beyond your plan&apos;s screen limit, scrape the catalog, or
-              attempt to bypass access controls. Admin accounts are for authorized operators only.
+            <p className="mt-2 text-sm">
+              Do not share accounts beyond your plan limits, scrape or redistribute content, bypass
+              access controls, or use the Service for unlawful purposes. We may suspend accounts that
+              violate these terms.
             </p>
           </section>
           <section>
-            <h2 className="text-lg font-bold text-white">Content</h2>
-            <p className="mt-2">
-              Films are streamed via embedded players. Shorty does not guarantee availability of
-              third-party video sources. Catalog and pricing may change during development.
+            <h2 className="text-lg font-bold text-white">Content & copyright</h2>
+            <p className="mt-2 text-sm">
+              All films, artwork, and metadata are protected by copyright. You receive a limited,
+              non-exclusive license to stream content for personal, non-commercial use. Filmmakers
+              retain their rights; payout terms for rights holders are governed by separate agreements.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">Limitation of liability</h2>
+            <p className="mt-2 text-sm">
+              The Service is provided &quot;as is.&quot; To the fullest extent permitted by law,
+              Shorty is not liable for indirect damages, service interruptions, or third-party
+              content availability.
+            </p>
+          </section>
+          <section>
+            <h2 className="text-lg font-bold text-white">Contact</h2>
+            <p className="mt-2 text-sm">
+              Questions:{" "}
+              <a href="mailto:legal@shorty.app" className="text-[#ff7a18]">
+                legal@shorty.app
+              </a>
             </p>
           </section>
         </div>

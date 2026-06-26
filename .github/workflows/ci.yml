@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run lint
+      - run: npm run build
+        env:
+          JWT_SECRET: ci-test-jwt-secret-minimum-32-chars-long
+          DATABASE_URL: file:./ci.db
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma db push
+      - run: SEED_DEMO_USERS=true npm run db:seed
+        env:
+          DATABASE_URL: file:./e2e.db
+
+      - run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+        env:
+          CI: "true"
+          JWT_SECRET: ci-test-jwt-secret-minimum-32-chars-long
+          DATABASE_URL: file:./e2e.db

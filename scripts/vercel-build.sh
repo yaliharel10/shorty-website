@@ -6,6 +6,11 @@ if [ "${VERCEL:-}" = "1" ] && [ -z "${JWT_SECRET:-}" ]; then
   exit 1
 fi
 
+if [ "${VERCEL:-}" = "1" ]; then
+  echo "Validating production environment..."
+  npx tsx scripts/check-production-env.ts
+fi
+
 npx prisma generate
 
 if [ -n "${TURSO_DATABASE_URL:-}" ] && [ -n "${TURSO_AUTH_TOKEN:-}" ]; then

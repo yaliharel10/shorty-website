@@ -69,6 +69,11 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link href="/cookies" className="transition hover:text-white">
+                  Cookies
+                </Link>
+              </li>
+              <li>
                 <Link href="/help" className="transition hover:text-white">
                   Help
                 </Link>
@@ -78,8 +83,7 @@ export function SiteFooter() {
         </div>
       </div>
       <p className="mx-auto mt-8 max-w-6xl text-center text-xs text-[#444]">
-        © {new Date().getFullYear()} Shorty. Demo streaming platform — portfolio project, not
-        affiliated with Netflix.
+        © {new Date().getFullYear()} Shorty. All rights reserved.
         {" · "}
         <Link href="/health" className="hover:text-[#666]">
           Status

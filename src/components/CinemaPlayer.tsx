@@ -43,6 +43,7 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
   const { toast } = useToast();
   const openedAtRef = useRef(Date.now());
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playbackTokenRef = useRef<string | null>(null);
   const viewEventIdRef = useRef<string | null>(null);
   const [data, setData] = useState<WatchPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,6 +139,52 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
     }
     setCountdown(AUTO_NEXT_SECONDS);
   }, [nearEnd, nextFilm, prefs.autoplayNext, subscriptionRequired]);
+
+  useEffect(() => {
+    if (!data?.film || subscriptionRequired || !user) return;
+
+    fetch(`/api/films/${filmId}/playback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start" }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.sessionToken) playbackTokenRef.current = json.sessionToken;
+        if (json.code === "SCREEN_LIMIT") {
+          toast(json.error || "Screen limit reached", "error");
+          router.push("/browse");
+        }
+      })
+      .catch(() => {});
+
+    const heartbeat = setInterval(() => {
+      if (!playbackTokenRef.current) return;
+      fetch(`/api/films/${filmId}/playback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "heartbeat",
+          sessionToken: playbackTokenRef.current,
+        }),
+      }).catch(() => {});
+    }, 60_000);
+
+    return () => {
+      clearInterval(heartbeat);
+      if (playbackTokenRef.current) {
+        fetch(`/api/films/${filmId}/playback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "end",
+            sessionToken: playbackTokenRef.current,
+          }),
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+  }, [data, filmId, subscriptionRequired, user, router, toast]);
 
   useEffect(() => {
     if (countdown === null || countdown <= 0) return;

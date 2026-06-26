@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { SkipLink } from "@/components/SkipLink";
 import { ServerWake } from "@/components/ServerWake";
+import { CookieConsent } from "@/components/CookieConsent";
 import "./globals.css";
 
 const inter = Inter({
@@ -74,6 +75,7 @@ export default function RootLayout({
         <SkipLink />
         <ServerWake />
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

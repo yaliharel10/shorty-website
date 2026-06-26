@@ -8,28 +8,28 @@ export const metadata = {
 
 const FAQ = [
   {
-    q: "Is there a one-click demo login link?",
-    a: "Yes — open /demo to sign in automatically as the demo user (Standard plan) and land on Browse. Requires ENABLE_TEST_LOGIN=true on the server.",
-  },
-  {
     q: "How do I start watching?",
-    a: "Create a free account for a 7-day trial, or sign in with a demo account. Browse films and click Play to open the player.",
-  },
-  {
-    q: "Why does sign-in take a while?",
-    a: "On free hosting tiers the server may sleep — the first request can take 30–60 seconds. Refresh or try again.",
+    a: "Create a free account for a 7-day trial, verify your email, then browse films and click Play.",
   },
   {
     q: "Can I watch without an account?",
-    a: "Yes — browse the catalog as a guest and watch the monthly free film on the homepage without signing in.",
+    a: "Yes — browse the catalog as a guest and watch the monthly free film on the homepage.",
   },
   {
     q: "How do subscriptions work?",
-    a: "Choose Basic, Standard, or Premium on the Plans page. Demo mode activates instantly; Stripe checkout is used when configured.",
+    a: "Choose Basic, Standard, or Premium on the Plans page. All plans include the full library with different screen limits.",
   },
   {
     q: "How do I cancel?",
     a: "Go to Account → Membership or Manage Plan. Cancel anytime — access continues until the billing period ends.",
+  },
+  {
+    q: "How do I export my data?",
+    a: "Go to Account settings and click Download my data for a JSON export of your account activity.",
+  },
+  {
+    q: "I didn't receive a verification email",
+    a: "Check spam, then use the Resend verification button on the browse page after signing in.",
   },
 ];
 
@@ -58,19 +58,9 @@ export default function HelpPage() {
           ))}
         </div>
         <p className="mt-10 text-sm text-[#666]">
-          Demo accounts: <code className="text-[#888]">demo / demo1234</code> (Standard plan)
-          {" · "}
-          <Link href="/demo" className="text-[#ff7a18] hover:underline">
-            Instant demo login
-          </Link>
-        </p>
-        <p className="mt-4 text-sm text-[#555]">
-          Production:{" "}
-          <a
-            href="https://shorty-website-five.vercel.app"
-            className="text-[#ff7a18] hover:underline"
-          >
-            shorty-website-five.vercel.app
+          Need more help? Email{" "}
+          <a href="mailto:support@shorty.app" className="text-[#ff7a18] hover:underline">
+            support@shorty.app
           </a>
         </p>
       </main>

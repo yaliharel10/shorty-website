@@ -37,6 +37,7 @@ import {
 } from "@/lib/film-filters";
 import { trialDaysRemaining } from "@/lib/subscription";
 import { GuestBrowseContent } from "@/components/GuestBrowsePage";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -106,6 +107,13 @@ function HomeContent() {
       setLoadingMore(false);
     }
   }, [category, debouncedSearch, showFavorites, filters, toast]);
+
+  useEffect(() => {
+    if (authLoading || !user) return;
+    if (!user.onboardingCompleted && user.role !== "admin") {
+      router.replace("/onboarding");
+    }
+  }, [authLoading, user, router]);
 
   useEffect(() => {
     fetch("/api/films/filters")
@@ -297,6 +305,7 @@ function HomeContent() {
     <PageTransition>
     <div className="min-h-screen bg-[#080808]">
       <OfflineBanner />
+      <EmailVerificationBanner />
       <Navbar
         activeCategory={category}
         onCategoryChange={(cat) => {

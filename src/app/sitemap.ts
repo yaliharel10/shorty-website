@@ -13,13 +13,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/subscription`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${baseUrl}/help`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${baseUrl}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${baseUrl}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${baseUrl}/cookies`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   try {
-    const [films, people] = await Promise.all([
+    const [films, people, collections] = await Promise.all([
       prisma.film.findMany({ select: { id: true, updatedAt: true } }),
       prisma.person.findMany({ select: { slug: true, updatedAt: true } }),
+      prisma.collection.findMany({
+        where: { published: true },
+        select: { slug: true, updatedAt: true },
+      }),
     ]);
 
     return [
@@ -35,6 +39,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         lastModified: person.updatedAt,
         changeFrequency: "monthly" as const,
         priority: 0.5,
+      })),
+      ...collections.map((col) => ({
+        url: `${baseUrl}/collections/${col.slug}`,
+        lastModified: col.updatedAt,
+        changeFrequency: "weekly" as const,
+        priority: 0.55,
       })),
     ];
   } catch {

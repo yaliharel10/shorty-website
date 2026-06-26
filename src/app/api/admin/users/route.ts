@@ -15,6 +15,8 @@ const userListSelect = {
   email: true,
   photoUrl: true,
   role: true,
+  emailVerified: true,
+  onboardingCompleted: true,
   subscriptionTier: true,
   subscriptionStatus: true,
   subscriptionEndsAt: true,

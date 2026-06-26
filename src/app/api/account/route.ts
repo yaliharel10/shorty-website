@@ -78,7 +78,7 @@ export async function PATCH(request: Request) {
         select: { id: true, password: true, email: true },
       });
 
-      if (!user || !(await verifyPassword(currentPassword, user.password))) {
+      if (!user || !user.password || !(await verifyPassword(currentPassword, user.password))) {
         return apiError("Current password is incorrect", 400);
       }
 
@@ -108,7 +108,7 @@ export async function PATCH(request: Request) {
       select: { id: true, password: true },
     });
 
-    if (!user || !(await verifyPassword(currentPassword, user.password))) {
+    if (!user || !user.password || !(await verifyPassword(currentPassword, user.password))) {
       return apiError("Current password is incorrect", 400);
     }
 

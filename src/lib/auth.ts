@@ -20,6 +20,8 @@ export type SessionUser = {
   email: string;
   role: string;
   photoUrl: string | null;
+  emailVerified: boolean;
+  onboardingCompleted: boolean;
   subscriptionTier: string;
   subscriptionStatus: string | null;
   subscriptionEndsAt: string | null;
@@ -46,6 +48,8 @@ export async function createToken(user: SessionUser, sessionId?: string) {
     email: user.email,
     role: user.role,
     photoUrl: user.photoUrl,
+    emailVerified: user.emailVerified,
+    onboardingCompleted: user.onboardingCompleted,
     subscriptionTier: user.subscriptionTier,
     subscriptionStatus: user.subscriptionStatus,
     subscriptionEndsAt: user.subscriptionEndsAt,
@@ -70,8 +74,10 @@ export async function verifyToken(token: string): Promise<SessionUser | null> {
       displayName: (payload.displayName as string) || null,
       email: payload.email as string,
       role: payload.role as string,
-      photoUrl: (payload.photoUrl as string) || null,
-      subscriptionTier: (payload.subscriptionTier as string) || "none",
+    photoUrl: (payload.photoUrl as string) || null,
+    emailVerified: Boolean(payload.emailVerified),
+    onboardingCompleted: Boolean(payload.onboardingCompleted),
+    subscriptionTier: (payload.subscriptionTier as string) || "none",
       subscriptionStatus: (payload.subscriptionStatus as string) || null,
       subscriptionEndsAt: (payload.subscriptionEndsAt as string) || null,
       trialEndsAt: (payload.trialEndsAt as string) || null,

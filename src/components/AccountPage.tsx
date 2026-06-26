@@ -929,6 +929,22 @@ function AccountContent() {
                   </form>
                 </section>
 
+                <section className="rounded-2xl border border-[#222] bg-[#111] p-6">
+                  <h2 className="text-lg font-bold">Your data</h2>
+                  <p className="mt-2 text-sm text-[#888]">
+                    Download a copy of your account data (favorites, ratings, watch history).
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      window.location.href = "/api/account/export";
+                    }}
+                    className="mt-4 rounded-lg border border-[#444] px-5 py-2.5 text-sm font-bold hover:bg-white/5"
+                  >
+                    Download my data
+                  </button>
+                </section>
+
                 <section className="rounded-2xl border border-red-900/40 bg-red-950/20 p-6">
                   <div className="flex items-center gap-2">
                     <Trash2 className="h-5 w-5 text-red-400" />

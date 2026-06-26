@@ -131,6 +131,18 @@ export function AuthModal({
       size="sm"
     >
       {isLogin ? (
+        <div className="flex flex-col gap-4">
+          <a
+            href="/api/auth/google"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#444] bg-white px-4 py-2.5 text-sm font-bold text-[#111] transition hover:bg-[#f0f0f0]"
+          >
+            Continue with Google
+          </a>
+          <div className="flex items-center gap-3 text-xs text-[#666]">
+            <span className="h-px flex-1 bg-[#333]" />
+            or sign in with email
+            <span className="h-px flex-1 bg-[#333]" />
+          </div>
         <form action="/api/auth/signin" method="POST" className="flex flex-col gap-4">
           <input type="hidden" name="redirect" value={redirectTo} />
 
@@ -195,6 +207,7 @@ export function AuthModal({
             Sign In
           </button>
         </form>
+        </div>
       ) : (
         <form onSubmit={handleRegister} className="flex flex-col gap-4" noValidate>
           <FormField

@@ -12,7 +12,12 @@ model User {
   username           String    @unique
   displayName        String?
   email              String    @unique
-  password           String
+  password           String?
+  googleId           String?   @unique
+  emailVerified      Boolean   @default(false)
+  emailVerificationToken       String?   @unique
+  emailVerificationExpiresAt   DateTime?
+  onboardingCompleted          Boolean   @default(false)
   photoUrl           String?
   role               String    @default("user")
   subscriptionTier         String    @default("none")
@@ -37,6 +42,7 @@ model User {
   watchProgress WatchProgress[]
   profiles  Profile[]
   notifications Notification[]
+  playbackSessions PlaybackSession[]
 }
 
 model UserSession {
@@ -72,6 +78,7 @@ model Film {
   trendingScore    Float    @default(0)
   monthlyFreeMonth String?
   duration         Int      @default(15)
+  kidsFriendly     Boolean  @default(true)
   year             Int      @default(2024)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -82,6 +89,7 @@ model Film {
   views     ViewEvent[]
   watchProgress WatchProgress[]
   collections CollectionFilm[]
+  playbackSessions PlaybackSession[]
 }
 
 model Person {
@@ -226,4 +234,17 @@ model PlatformSettings {
   id                 String   @id @default("default")
   creatorPoolPercent Float    @default(50)
   updatedAt          DateTime @updatedAt
+}
+
+model PlaybackSession {
+  id           String   @id @default(cuid())
+  userId       String
+  filmId       String
+  sessionToken String   @unique
+  lastActiveAt DateTime @default(now())
+  expiresAt    DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  film         Film     @relation(fields: [filmId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lastActiveAt])
 }

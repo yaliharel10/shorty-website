@@ -6,9 +6,9 @@ const TEST_PATHS = ["/test", "/demo", "/api/test"];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (process.env.NODE_ENV === "production" && process.env.ENABLE_TEST_LOGIN !== "true") {
+  if (process.env.NODE_ENV === "production") {
     if (TEST_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-      return NextResponse.redirect(new URL("/help?demo=disabled", request.url));
+      return NextResponse.redirect(new URL("/", request.url));
     }
   }
 

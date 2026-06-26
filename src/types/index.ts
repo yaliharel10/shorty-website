@@ -79,6 +79,8 @@ export type User = {
   email: string;
   role: string;
   photoUrl: string | null;
+  emailVerified: boolean;
+  onboardingCompleted: boolean;
   subscriptionTier: string;
   subscriptionStatus: string | null;
   subscriptionEndsAt: string | null;

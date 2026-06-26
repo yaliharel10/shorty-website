@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       select: { ...userSessionSelect, password: true },
     });
 
-    if (!user || !(await verifyPassword(data.password, user.password))) {
+    if (!user?.password || !(await verifyPassword(data.password, user.password))) {
       return redirectWithError(request, "invalid_credentials", redirectTo);
     }
 

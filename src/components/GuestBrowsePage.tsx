@@ -7,7 +7,6 @@ import { useAuth } from "@/components/AuthProvider";
 import { AuthModal, authErrorMessage } from "@/components/AuthModal";
 import { Hero, FilmRow } from "@/components/Hero";
 import { FilmCard } from "@/components/FilmCard";
-import { DemoAccessBar } from "@/components/DemoAccessBar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HeroSkeleton, FilmRowSkeleton } from "@/components/LoadingSkeleton";
 import type { Film } from "@/types";
@@ -93,8 +92,6 @@ export function GuestBrowseContent() {
           </div>
         </div>
       </header>
-
-      <DemoAccessBar />
 
       <div className="border-b border-[#ff7a18]/20 bg-[#ff7a18]/10 px-4 py-3 text-center text-sm md:px-8">
         <span className="text-[#ccc]">

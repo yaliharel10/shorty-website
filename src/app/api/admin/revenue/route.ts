@@ -35,6 +35,7 @@ export async function GET(request: Request) {
           username: true,
           email: true,
           role: true,
+          emailVerified: true,
           subscriptionTier: true,
           subscriptionStatus: true,
           subscriptionEndsAt: true,

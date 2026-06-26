@@ -23,7 +23,7 @@ export async function ensureDefaultProfile(userId: string) {
 
 export async function listProfiles(userId: string) {
   await ensureDefaultProfile(userId);
-  return prisma.profile.findMany({
+  const profiles = await prisma.profile.findMany({
     where: { userId },
     orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     select: {
@@ -33,8 +33,10 @@ export async function listProfiles(userId: string) {
       isKids: true,
       isDefault: true,
       createdAt: true,
+      pinHash: true,
     },
   });
+  return profiles.map(({ pinHash, ...p }) => ({ ...p, hasPin: Boolean(pinHash) }));
 }
 
 export async function createProfile(

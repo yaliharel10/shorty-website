@@ -17,6 +17,7 @@ export const adminFilmSchema = z.object({
   country: z.string().optional().nullable(),
   monthlyFreeMonth: z.string().optional().nullable(),
   rating: z.number().min(0).max(10).optional(),
+  kidsFriendly: z.boolean().optional(),
 });
 
 export const adminPersonSchema = z.object({

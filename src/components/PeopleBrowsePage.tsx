@@ -6,7 +6,6 @@ import { useSearchParams } from "next/navigation";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
 import { PersonCard } from "@/components/PersonCard";
-import { DemoAccessBar } from "@/components/DemoAccessBar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { PERSON_ROLES } from "@/lib/person-utils";
 import { cn } from "@/lib/utils";
@@ -55,8 +54,6 @@ function PeopleBrowseContent() {
           </Link>
         </div>
       </header>
-
-      <DemoAccessBar />
 
       <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row">

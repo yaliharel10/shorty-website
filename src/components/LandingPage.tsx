@@ -18,7 +18,6 @@ import { ToastProvider, useToast } from "@/components/Toast";
 import { AuthModal, authErrorMessage } from "@/components/AuthModal";
 import { FilmModal } from "@/components/FilmModal";
 import { PricingPlans } from "@/components/PricingPlans";
-import { DemoAccessBar } from "@/components/DemoAccessBar";
 import { SiteFooter } from "@/components/SiteFooter";
 import { formatRating } from "@/lib/utils";
 import { TRIAL_DAYS, SUBSCRIPTION_PLANS } from "@/lib/subscription";
@@ -132,7 +131,6 @@ function LandingContent() {
         </div>
       </header>
 
-      <DemoAccessBar />
 
       {/* Hero */}
       <section className="relative flex min-h-screen items-center overflow-hidden">

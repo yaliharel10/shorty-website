@@ -150,9 +150,14 @@ function buildPrismaWhere(
   filters: FilmFilterState,
   category: string,
   creditFilmIds: Set<string>,
-  search: string
+  search: string,
+  kidsOnly = false
 ): Prisma.FilmWhereInput {
   const where: Prisma.FilmWhereInput = { published: true };
+
+  if (kidsOnly) {
+    where.kidsFriendly = true;
+  }
 
   if (category !== "all" && category !== "top" && category !== "new") {
     where.category = category;
@@ -213,6 +218,7 @@ export async function loadPaginatedFilms(options: {
   favoriteIds: string[];
   cursor?: string | null;
   limit?: number;
+  kidsOnly?: boolean;
 }) {
   const {
     category,
@@ -222,6 +228,7 @@ export async function loadPaginatedFilms(options: {
     favoriteIds,
     cursor,
     limit = 24,
+    kidsOnly = false,
   } = options;
 
   const pageSize = Math.min(48, Math.max(1, limit));
@@ -242,7 +249,11 @@ export async function loadPaginatedFilms(options: {
       return { films: [], nextCursor: null, resultCount: 0 };
     }
     const films = await prisma.film.findMany({
-      where: { id: { in: favoriteIds }, published: true },
+      where: {
+        id: { in: favoriteIds },
+        published: true,
+        ...(kidsOnly ? { kidsFriendly: true } : {}),
+      },
       include: filmListInclude,
       orderBy: { createdAt: "desc" },
     });
@@ -290,7 +301,7 @@ export async function loadPaginatedFilms(options: {
     return { films: [], nextCursor: null, resultCount: 0 };
   }
 
-  const where = buildPrismaWhere(filters, category, creditFilmIds, search);
+  const where = buildPrismaWhere(filters, category, creditFilmIds, search, kidsOnly);
   const batch = await prisma.film.findMany({
     where,
     include: filmListInclude,

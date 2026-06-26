@@ -10,6 +10,7 @@ import { enrichFilmMetadata, filmGenres, filmMoods, filmTags } from "@/lib/film-
 import { isFilmMonthlyFree } from "@/lib/monthly-free";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
+import { getActiveProfile } from "@/lib/active-profile";
 
 export async function GET(
   _request: Request,
@@ -80,6 +81,13 @@ export async function GET(
         },
         { status: 403 }
       );
+    }
+
+    if (session) {
+      const profile = await getActiveProfile(session.id);
+      if (profile?.isKids && !film.kidsFriendly) {
+        return apiError("This film is not available on kids profiles", 403);
+      }
     }
 
     let isFavorite = false;

@@ -22,6 +22,7 @@ import { parseFilmFilters } from "@/lib/film-filters";
 import { getMonthlyFreeFilm } from "@/lib/monthly-free";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
+import { getActiveProfile } from "@/lib/active-profile";
 
 export async function GET(request: Request) {
   try {
@@ -51,6 +52,8 @@ export async function GET(request: Request) {
     }
 
     const streamingAccess = hasStreamingAccess(dbUser);
+    const profile = await getActiveProfile(session.id);
+    const kidsOnly = profile?.isKids ?? false;
     const monthlyFree = await getMonthlyFreeFilm();
     const accessOptions = {
       hasStreamingAccess: streamingAccess,
@@ -111,6 +114,7 @@ export async function GET(request: Request) {
         favoriteIds,
         cursor,
         limit,
+        kidsOnly,
       }),
       loadContinueWatching(progressRows, views),
       loadRecommendationPool({

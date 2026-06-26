@@ -11,6 +11,11 @@ import { loginSchema, registerSchema } from "@/lib/validation";
 import { userSessionSelect } from "@/lib/user-session";
 import { ensureDefaultProfile } from "@/lib/profiles";
 import { createNotification } from "@/lib/notifications";
+import { isProductionDeploy } from "@/lib/production";
+import {
+  issueEmailVerification,
+  sendWelcomeEmail,
+} from "@/lib/email-verification";
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, "auth", 10, 15 * 60 * 1000);
@@ -33,6 +38,7 @@ export async function POST(request: Request) {
 
       const trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+      const autoVerify = !isProductionDeploy() || !process.env.RESEND_API_KEY;
 
       const user = await prisma.user.create({
         data: {
@@ -40,20 +46,30 @@ export async function POST(request: Request) {
           email: data.email.toLowerCase(),
           password: await hashPassword(data.password),
           trialEndsAt,
+          emailVerified: autoVerify,
         },
         select: userSessionSelect,
       });
 
-      // Don't block the auth response on profile/notification setup.
       void ensureDefaultProfile(user.id).catch(() => {});
       void createNotification(user.id, {
         type: "welcome",
         title: "Welcome to Shorty",
-        body: "Your 7-day free trial is active — start watching curated short films.",
+        body: autoVerify
+          ? "Your 7-day free trial is active — start watching curated short films."
+          : "Verify your email to unlock your 7-day free trial.",
         href: "/browse",
       }).catch(() => {});
 
-      return issueAuthResponse(user, request, {}, "signup");
+      if (!autoVerify) {
+        void issueEmailVerification(user.id, user.email).catch(() => {});
+      } else {
+        void sendWelcomeEmail(user.email, user.username).catch(() => {});
+      }
+
+      return issueAuthResponse(user, request, {
+        emailVerificationRequired: !autoVerify,
+      }, "signup");
     }
 
     if (action === "login") {
@@ -68,7 +84,7 @@ export async function POST(request: Request) {
         },
       });
 
-      if (!user || !(await verifyPassword(data.password, user.password))) {
+      if (!user || !user.password || !(await verifyPassword(data.password, user.password))) {
         return apiError("Invalid credentials", 401);
       }
 

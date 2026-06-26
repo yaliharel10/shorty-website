@@ -273,11 +273,16 @@ async function main() {
   await prisma.person.deleteMany();
   await prisma.film.deleteMany();
   await prisma.userSession.deleteMany();
+  await prisma.playbackSession.deleteMany();
   await prisma.user.deleteMany();
 
   const hash = (pw: string) => bcrypt.hash(pw, 12);
-  const adminPassword = await hash("admin123");
-  const userPassword = await hash("demo1234");
+  const seedDemo =
+    process.env.SEED_DEMO_USERS === "true" || process.env.NODE_ENV !== "production";
+
+  if (seedDemo) {
+    const adminPassword = await hash("admin123");
+    const userPassword = await hash("demo1234");
 
   const inDays = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -344,7 +349,30 @@ async function main() {
   ];
 
   for (const u of demoUsers) {
-    await prisma.user.create({ data: u });
+    await prisma.user.create({
+      data: { ...u, emailVerified: true, onboardingCompleted: true },
+    });
+  }
+  } else {
+    const adminPw = process.env.ADMIN_INITIAL_PASSWORD;
+    if (adminPw) {
+      await prisma.user.create({
+        data: {
+          username: "admin",
+          email: process.env.ADMIN_EMAIL || "admin@shorty.app",
+          password: await hash(adminPw),
+          role: "admin",
+          emailVerified: true,
+          onboardingCompleted: true,
+          photoUrl: "https://ui-avatars.com/api/?name=Admin&background=ff7a18&color=fff",
+        },
+      });
+      console.log("Created production admin account (set ADMIN_INITIAL_PASSWORD in env).");
+    } else {
+      console.warn(
+        "Skipping user seed — set ADMIN_INITIAL_PASSWORD for production admin or SEED_DEMO_USERS=true for dev."
+      );
+    }
   }
 
   const people = await Promise.all(
@@ -479,14 +507,10 @@ async function main() {
   }
 
   console.log("Database seeded successfully!");
-  console.log("\n--- Demo accounts (password for all users: demo1234) ---");
-  console.log("admin / admin123          → Admin panel access");
-  console.log("demo / demo1234           → Standard subscriber (full access)");
-  console.log("trialuser / demo1234      → Active 7-day free trial");
-  console.log("basicuser / demo1234      → Basic plan ($1.99/mo)");
-  console.log("premiumuser / demo1234    → Premium plan ($5.99/mo)");
-  console.log("expireduser / demo1234    → Expired trial, no subscription");
-  console.log("guestplus / demo1234      → Canceled sub, access until period ends");
+  if (seedDemo) {
+    console.log("\n--- Dev demo accounts (password: demo1234, admin: admin123) ---");
+    console.log("Set SEED_DEMO_USERS=false in production.");
+  }
 }
 
 main()

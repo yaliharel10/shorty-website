@@ -31,7 +31,7 @@ export async function DELETE(request: Request) {
       },
     });
 
-    if (!user || !(await verifyPassword(currentPassword, user.password))) {
+    if (!user || !user.password || !(await verifyPassword(currentPassword, user.password))) {
       return apiError("Current password is incorrect", 400);
     }
 

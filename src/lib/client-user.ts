@@ -9,6 +9,8 @@ export function sessionToClientUser(session: SessionUser) {
     email: session.email,
     role: session.role,
     photoUrl: session.photoUrl,
+    emailVerified: session.emailVerified,
+    onboardingCompleted: session.onboardingCompleted,
     subscriptionTier: session.subscriptionTier,
     subscriptionStatus: session.subscriptionStatus,
     subscriptionEndsAt: session.subscriptionEndsAt,

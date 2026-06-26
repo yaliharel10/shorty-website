@@ -10,6 +10,7 @@ import { subscribeSchema } from "@/lib/validation";
 import { isStripeConfigured, getStripe } from "@/lib/stripe";
 import { activateDemoSubscription } from "@/lib/stripe-sync";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
+import { isProductionDeploy } from "@/lib/production";
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, "subscribe", 5, 15 * 60 * 1000);
@@ -32,6 +33,10 @@ export async function POST(request: Request) {
         "Use Stripe checkout — call POST /api/subscription/checkout instead",
         400
       );
+    }
+
+    if (isProductionDeploy()) {
+      return apiError("Billing is not available. Please contact support.", 503);
     }
 
     const user = await activateDemoSubscription(session.id, planId);
