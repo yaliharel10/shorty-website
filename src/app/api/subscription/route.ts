@@ -12,7 +12,7 @@ import { activateDemoSubscription } from "@/lib/stripe-sync";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, "subscribe", 5, 15 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "subscribe", 5, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {

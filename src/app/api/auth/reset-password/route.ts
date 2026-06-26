@@ -7,7 +7,7 @@ import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
 import { resetPasswordSchema } from "@/lib/validation";
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, "reset-password", 5, 15 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "reset-password", 5, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {

@@ -3,8 +3,10 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { apiError, handleApiError } from "@/lib/api-utils";
-import { getSimilarFilms, type FilmWithPeople } from "@/lib/recommendations";
+import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
+import { trackEvent } from "@/lib/analytics";
+import { getSimilarFilms } from "@/lib/recommendations";
+import { enrichFilmMetadata, filmGenres, filmMoods, filmTags } from "@/lib/film-metadata";
 import { isFilmMonthlyFree } from "@/lib/monthly-free";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
@@ -14,6 +16,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const limited = await enforceRateLimit(_request, "film-detail", 120, 60_000);
+    if (limited) return limited;
+
     const { id } = await params;
     const session = await getSession();
 
@@ -39,6 +44,10 @@ export async function GET(
     });
 
     if (!film) {
+      return apiError("Film not found", 404);
+    }
+
+    if (!film.published && session?.role !== "admin") {
       return apiError("Film not found", 404);
     }
 
@@ -103,38 +112,67 @@ export async function GET(
       await prisma.viewEvent.create({
         data: { filmId: id, userId: session.id },
       });
+      trackEvent("film_viewed", { filmId: id, title: film.title }, session.id);
     } else {
       await prisma.viewEvent.create({
         data: { filmId: id, userId: null },
       });
+      trackEvent("film_viewed", { filmId: id, title: film.title });
     }
 
-    const allFilms = await prisma.film.findMany({
+    const candidates = await prisma.film.findMany({
+      where: {
+        published: true,
+        id: { not: id },
+        OR: [{ category: film.category }, { rating: { gte: film.rating - 1 } }],
+      },
+      take: 50,
+      orderBy: { rating: "desc" },
       include: {
         _count: { select: { ratings: true, favorites: true, views: true } },
-        credits: { select: { personId: true } },
+        credits: { select: { personId: true, role: true } },
       },
     });
 
+    const candidateIds = candidates.map((f) => f.id);
+    const globalRatings = candidateIds.length
+      ? await prisma.rating.findMany({
+          where: { filmId: { in: candidateIds } },
+          select: { userId: true, filmId: true, score: true },
+        })
+      : [];
+
+    const filmForRec = {
+      ...film,
+      credits: film.credits.map((c) => ({
+        personId: c.personId,
+        role: c.role,
+      })),
+      moods: filmMoods(film),
+      genres: filmGenres(film),
+      tags: filmTags(film),
+    };
+
     const similar = getSimilarFilms(
-      {
-        ...film,
-        credits: film.credits.map((c) => ({ personId: c.personId })),
-      } satisfies FilmWithPeople,
-      allFilms.map((f) => ({
+      filmForRec,
+      candidates.map((f) => ({
         ...f,
         credits: f.credits,
+        moods: filmMoods(f),
+        genres: filmGenres(f),
+        tags: filmTags(f),
       })),
-      6
+      6,
+      globalRatings
     );
 
     return NextResponse.json({
-      film,
+      film: enrichFilmMetadata(film),
       isFavorite,
       userRating,
       hasWatched,
       progressPercent,
-      similar,
+      similar: similar.map((s) => enrichFilmMetadata(s)),
     });
   } catch (error) {
     return handleApiError(error, "Failed to load film");

@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, Plus, Trash2, Star as StarIcon } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Plus, Trash2, Star as StarIcon } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import type { Film } from "@/types";
 
 type AdminFilm = Film & {
+  published?: boolean;
   _count: { views: number; favorites: number; ratings: number };
 };
 
@@ -74,6 +75,15 @@ function AdminFilmsContent() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: film.id, featured: !film.featured }),
+    });
+    loadFilms();
+  };
+
+  const togglePublished = async (film: AdminFilm) => {
+    await fetch("/api/admin/films", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: film.id, published: !film.published }),
     });
     loadFilms();
   };
@@ -162,6 +172,11 @@ function AdminFilmsContent() {
                       Featured
                     </span>
                   )}
+                  {film.published === false && (
+                    <span className="rounded bg-red-900/30 px-2 py-0.5 text-xs text-red-400">
+                      Unpublished
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 text-sm capitalize text-[#888]">
                   {film.category} · {film.duration}m · ⭐ {film.rating.toFixed(1)}
@@ -171,6 +186,17 @@ function AdminFilmsContent() {
                 </p>
               </div>
               <div className="flex gap-2">
+                <button
+                  onClick={() => togglePublished(film)}
+                  className="rounded-lg border border-[#333] px-3 py-2 text-sm hover:bg-[#222]"
+                  title={film.published === false ? "Publish film" : "Unpublish film"}
+                >
+                  {film.published === false ? (
+                    <EyeOff className="h-4 w-4 text-red-400" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
                 <button
                   onClick={() => toggleFeatured(film)}
                   className="rounded-lg border border-[#333] px-3 py-2 text-sm hover:bg-[#222]"

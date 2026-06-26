@@ -28,10 +28,11 @@ const RATING_PRESETS = [
 ] as const;
 
 const DURATION_PRESETS = [
-  { label: "Any length", min: null, max: null },
-  { label: "Under 15m", min: null, max: 14 },
-  { label: "15–20m", min: 15, max: 20 },
-  { label: "Over 20m", min: 21, max: null },
+  { label: "Any length", min: null, max: null, quickWatch: false },
+  { label: "Quick watch (<10m)", min: null, max: 10, quickWatch: true },
+  { label: "Micro (<5m)", min: null, max: 4, quickWatch: false },
+  { label: "15–20m", min: 15, max: 20, quickWatch: false },
+  { label: "Over 20m", min: 21, max: null, quickWatch: false },
 ] as const;
 
 const SORT_OPTIONS: { value: FilmSort; label: string }[] = [
@@ -87,6 +88,13 @@ export function FilmSearchFilters({
       ? filters.genres.filter((g) => g !== id)
       : [...filters.genres, id];
     patch({ genres });
+  };
+
+  const toggleMood = (id: string) => {
+    const moods = filters.moods.includes(id)
+      ? filters.moods.filter((m) => m !== id)
+      : [...filters.moods, id];
+    patch({ moods });
   };
 
   const clearAll = () => onChange({ ...DEFAULT_FILM_FILTERS });
@@ -160,6 +168,37 @@ export function FilmSearchFilters({
               </div>
             </div>
 
+            {/* Moods */}
+            {(meta?.moods?.length ?? 0) > 0 && (
+              <div className="md:col-span-2 xl:col-span-3">
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#666]">
+                  Mood
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {meta!.moods.map(({ id, label, count: moodCount }) => (
+                    <Chip
+                      key={id}
+                      active={filters.moods.includes(id)}
+                      onClick={() => toggleMood(id)}
+                    >
+                      {label}
+                      <span className="ml-1 text-[#666]">({moodCount})</span>
+                    </Chip>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Quick watch toggle */}
+            <div className="md:col-span-2 xl:col-span-3">
+              <Chip
+                active={filters.quickWatch}
+                onClick={() => patch({ quickWatch: !filters.quickWatch, maxDuration: filters.quickWatch ? null : 10 })}
+              >
+                ⚡ Quick watch only (under 10 min)
+              </Chip>
+            </div>
+
             {/* Rating */}
             <div>
               <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#666]">
@@ -184,13 +223,21 @@ export function FilmSearchFilters({
                 Duration
               </p>
               <div className="flex flex-wrap gap-2">
-                {DURATION_PRESETS.map(({ label, min, max }) => (
+                {DURATION_PRESETS.map(({ label, min, max, quickWatch }) => (
                   <Chip
                     key={label}
                     active={
-                      filters.minDuration === min && filters.maxDuration === max
+                      quickWatch
+                        ? filters.quickWatch
+                        : filters.minDuration === min && filters.maxDuration === max && !filters.quickWatch
                     }
-                    onClick={() => patch({ minDuration: min, maxDuration: max })}
+                    onClick={() =>
+                      patch({
+                        minDuration: min,
+                        maxDuration: max,
+                        quickWatch: quickWatch,
+                      })
+                    }
                   >
                     {label}
                   </Chip>

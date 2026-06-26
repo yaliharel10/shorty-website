@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getClientIp, rateLimit } from "./rate-limit";
+import { logger } from "./logger";
 
 export function apiError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -18,18 +19,18 @@ export function handleApiError(error: unknown, fallback = "Something went wrong"
       return apiError("Forbidden", 403);
     }
   }
-  console.error("[api]", error);
+  logger.error("api_error", error, { fallback });
   return apiError(fallback, 500);
 }
 
-export function enforceRateLimit(
+export async function enforceRateLimit(
   request: Request,
   name: string,
   limit: number,
   windowMs: number
 ) {
   const ip = getClientIp(request);
-  const result = rateLimit(`${name}:${ip}`, limit, windowMs);
+  const result = await rateLimit(`${name}:${ip}`, limit, windowMs);
   if (!result.ok) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
@@ -41,3 +42,7 @@ export function enforceRateLimit(
   }
   return null;
 }
+
+export const PUBLIC_CACHE_HEADERS = {
+  "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+};

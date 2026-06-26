@@ -16,5 +16,12 @@ else
   npx prisma db push --accept-data-loss
 fi
 
-npm run db:seed
+if [ "${RUN_DB_SEED:-}" = "true" ]; then
+  echo "RUN_DB_SEED=true — forcing full database seed..."
+  npm run db:seed
+else
+  echo "Checking if database needs initial seed..."
+  npx tsx scripts/seed-if-empty.ts
+fi
+
 next build

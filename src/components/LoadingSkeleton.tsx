@@ -45,3 +45,11 @@ export function HeroSkeleton() {
     </div>
   );
 }
+
+export function LoadingSkeleton({
+  className = "h-24",
+}: {
+  className?: string;
+}) {
+  return <div className={`animate-pulse rounded-xl bg-[#141414] ${className}`} />;
+}

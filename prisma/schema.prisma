@@ -53,10 +53,17 @@ model Film {
   title            String
   description      String
   category         String
+  genres           String   @default("[]")
+  moods            String   @default("[]")
+  tags             String   @default("[]")
+  language         String   @default("en")
+  country          String?
   rating           Float    @default(0)
   posterUrl        String
   videoUrl         String
   featured         Boolean  @default(false)
+  published        Boolean  @default(true)
+  trendingScore    Float    @default(0)
   monthlyFreeMonth String?
   duration         Int      @default(15)
   year             Int      @default(2024)
@@ -68,6 +75,7 @@ model Film {
   ratings   Rating[]
   views     ViewEvent[]
   watchProgress WatchProgress[]
+  collections CollectionFilm[]
 }
 
 model Person {
@@ -143,4 +151,35 @@ model WatchProgress {
 
   @@unique([userId, filmId])
   @@index([userId])
+}
+
+model Collection {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String
+  heroUrl     String?
+  featured    Boolean  @default(false)
+  country     String?
+  mood        String?
+  sortOrder   Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  films CollectionFilm[]
+
+  @@index([featured, sortOrder])
+}
+
+model CollectionFilm {
+  collectionId String
+  filmId       String
+  sortOrder    Int @default(0)
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  film       Film       @relation(fields: [filmId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, filmId])
+  @@index([collectionId, sortOrder])
 }

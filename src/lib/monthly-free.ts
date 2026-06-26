@@ -34,12 +34,13 @@ export async function getMonthlyFreeFilm() {
   const monthKey = getCurrentMonthKey();
 
   let film = await prisma.film.findFirst({
-    where: { monthlyFreeMonth: monthKey },
+    where: { monthlyFreeMonth: monthKey, published: true },
     include: filmInclude,
   });
 
   if (!film) {
     const allFilms = await prisma.film.findMany({
+      where: { published: true },
       orderBy: { createdAt: "asc" },
       include: filmInclude,
     });

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { isFilmMonthlyFree } from "@/lib/monthly-free";
-import { genreLabel } from "@/lib/film-filters";
+import { genreLabel } from "@/lib/film-metadata";
 
 export const publicFilmSelect = {
   id: true,
@@ -27,8 +27,8 @@ export const publicFilmSelect = {
 } as const;
 
 export async function getPublicFilm(id: string) {
-  const film = await prisma.film.findUnique({
-    where: { id },
+  const film = await prisma.film.findFirst({
+    where: { id, published: true },
     select: publicFilmSelect,
   });
 

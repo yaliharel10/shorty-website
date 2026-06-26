@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
+import { touchUserSession, validateUserSession } from "@/lib/sessions";
 
 function getJwtSecretKey() {
   const secret = process.env.JWT_SECRET;
@@ -93,6 +94,13 @@ export async function getSession(): Promise<SessionUser | null> {
 export async function requireSession(): Promise<SessionUser> {
   const session = await getSession();
   if (!session) throw new Error("Unauthorized");
+
+  if (session.sessionId) {
+    const valid = await validateUserSession(session.sessionId);
+    if (!valid) throw new Error("Unauthorized");
+    await touchUserSession(session.sessionId);
+  }
+
   return session;
 }
 

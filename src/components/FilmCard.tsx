@@ -6,7 +6,8 @@ import { cn, formatRating } from "@/lib/utils";
 import type { Film } from "@/types";
 import { RatingBadge } from "@/components/StarRating";
 import { WatchedBadge } from "@/components/WatchedBadge";
-import { NewBadge, ProgressBar } from "@/components/FilmBadges";
+import { NewBadge, ProgressBar, RuntimeBadge } from "@/components/FilmBadges";
+import { getDurationTier } from "@/lib/film-metadata";
 
 type FilmCardInlineProps = {
   film: Film;
@@ -55,6 +56,10 @@ export function FilmCardInline({
           ) : null}
         </div>
         <div className="absolute right-2 top-2 flex flex-col items-end gap-1.5">
+          <RuntimeBadge
+            minutes={film.duration}
+            tier={film.durationTier ?? getDurationTier(film.duration)}
+          />
           <RatingBadge rating={film.rating} className="md:hidden" />
           {isFavorite && (
             <Heart className="h-4 w-4 fill-red-500 text-red-500 drop-shadow" aria-hidden="true" />
@@ -130,6 +135,11 @@ export function FilmCard({
           ) : null}
         </div>
         <div className="absolute right-2 top-2 flex flex-col items-end gap-1.5">
+          <RuntimeBadge
+            minutes={film.duration}
+            tier={film.durationTier ?? getDurationTier(film.duration)}
+            prominent
+          />
           <RatingBadge rating={film.rating} />
           {isFavorite && (
             <Heart className="h-4 w-4 fill-red-500 text-red-500 drop-shadow" aria-hidden="true" />
@@ -143,8 +153,10 @@ export function FilmCard({
       </div>
       <div className="p-3">
         <h4 className="truncate text-sm font-semibold">{film.title}</h4>
-        <p className="mt-1 text-xs capitalize text-[#888]">
-          {film.category} · {film.duration}m
+        <p className="mt-1 text-xs text-[#888]">
+          <span className="font-semibold text-[#ff7a18]">{film.runtimeCompact ?? `${film.duration}m`}</span>
+          {" · "}
+          <span className="capitalize">{film.category}</span>
           {showProgress && (
             <span className="text-[#ff7a18]"> · {progressPercent}% watched</span>
           )}

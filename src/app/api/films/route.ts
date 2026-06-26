@@ -3,33 +3,38 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { apiError, handleApiError } from "@/lib/api-utils";
+import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
+import { trackEvent } from "@/lib/analytics";
 import {
-  getRecommendedForUser,
-  isNewFilm,
-} from "@/lib/recommendations";
+  getFeaturedCollections,
+  getQuickWatchFilms,
+  getTrendingFilms,
+  serializeCollection,
+} from "@/lib/collections";
+import { sanitizeFilmForClient, sanitizeFilmsForClient } from "@/lib/film-access";
 import {
-  applyFilmFilters,
-  hasActiveFilmFilters,
-  parseFilmFilters,
-  sortFilms,
-} from "@/lib/film-filters";
+  loadContinueWatching,
+  loadCuratedBrowseRows,
+  loadPaginatedFilms,
+  loadRecommendationPool,
+} from "@/lib/films-browse";
+import { parseFilmFilters } from "@/lib/film-filters";
+import { getMonthlyFreeFilm } from "@/lib/monthly-free";
 import { hasStreamingAccess } from "@/lib/subscription";
 import { userSessionSelect } from "@/lib/user-session";
 
-const filmListInclude = {
-  _count: { select: { ratings: true, favorites: true, views: true } },
-  credits: { select: { personId: true } },
-} as const;
-
 export async function GET(request: Request) {
   try {
+    const limited = await enforceRateLimit(request, "films-browse", 180, 60_000);
+    if (limited) return limited;
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") || "all";
     const search = searchParams.get("search")?.trim().slice(0, 100) || "";
     const favoritesOnly = searchParams.get("favorites") === "true";
+    const cursor = searchParams.get("cursor");
+    const limit = Number.parseInt(searchParams.get("limit") || "24", 10);
     const filters = parseFilmFilters(searchParams);
-    const advancedFilters = hasActiveFilmFilters(filters);
     const session = await getSession();
 
     if (!session) {
@@ -46,50 +51,26 @@ export async function GET(request: Request) {
     }
 
     const streamingAccess = hasStreamingAccess(dbUser);
-
-    const allFilms = await prisma.film.findMany({
-      include: filmListInclude,
-      orderBy: { createdAt: "desc" },
-    });
-
-    let films = allFilms;
-    let creditFilmIds = new Set<string>();
+    const monthlyFree = await getMonthlyFreeFilm();
+    const accessOptions = {
+      hasStreamingAccess: streamingAccess,
+      monthlyFreeFilmId: monthlyFree?.film.id ?? null,
+    };
 
     if (search) {
-      const creditMatches = await prisma.filmCredit.findMany({
-        where: { person: { name: { contains: search } } },
-        select: { filmId: true },
-      });
-      creditFilmIds = new Set(creditMatches.map((c) => c.filmId));
+      trackEvent("search_used", { query: search }, session.id);
     }
 
-    const useAdvancedBrowse = advancedFilters || Boolean(search);
-
-    if (useAdvancedBrowse) {
-      films = applyFilmFilters(films, filters, creditFilmIds, search);
-      const defaultSort = search ? filters.sort : filters.sort === "relevance" ? "rating" : filters.sort;
-      films = sortFilms(films, defaultSort, search);
-    } else if (category === "top") {
-      films = [...films].sort((a, b) => b.rating - a.rating).slice(0, 8);
-    } else if (category === "new") {
-      films = [...films]
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
-        .slice(0, 20);
-    } else if (category !== "all") {
-      films = films.filter((f) => f.category === category);
-      films = sortFilms(films, "rating");
-    }
-
-    let favoriteIds: string[] = [];
-    let watchedIds: string[] = [];
-    let userRatings: Record<string, number> = {};
-    let watchProgress: Record<string, number> = {};
-    let viewEvents: { filmId: string }[] = [];
-
-    const [favorites, ratings, views, progressRows] = await Promise.all([
+    const [
+      favorites,
+      ratings,
+      views,
+      progressRows,
+      curated,
+      trending,
+      quickWatch,
+      featuredCollections,
+    ] = await Promise.all([
       prisma.favorite.findMany({
         where: { userId: session.id },
         select: { filmId: true },
@@ -108,92 +89,74 @@ export async function GET(request: Request) {
         select: { filmId: true, progressPercent: true, updatedAt: true },
         orderBy: { updatedAt: "desc" },
       }),
+      loadCuratedBrowseRows(),
+      getTrendingFilms(10),
+      getQuickWatchFilms(12),
+      getFeaturedCollections(4),
     ]);
 
-    viewEvents = views;
-    favoriteIds = favorites.map((f) => f.filmId);
-    watchedIds = [...new Set(views.map((v) => v.filmId))];
-    userRatings = Object.fromEntries(ratings.map((r) => [r.filmId, r.score]));
-    watchProgress = Object.fromEntries(
+    const favoriteIds = favorites.map((f) => f.filmId);
+    const watchedIds = [...new Set(views.map((v) => v.filmId))];
+    const userRatings = Object.fromEntries(ratings.map((r) => [r.filmId, r.score]));
+    const watchProgress = Object.fromEntries(
       progressRows.map((p) => [p.filmId, p.progressPercent])
     );
 
-    if (favoritesOnly) {
-      films = films.filter((f) => favoriteIds.includes(f.id));
-    }
+    const [paginatedResult, continueWatching, recommendedForYou] = await Promise.all([
+      loadPaginatedFilms({
+        category,
+        search,
+        filters,
+        favoritesOnly,
+        favoriteIds,
+        cursor,
+        limit,
+      }),
+      loadContinueWatching(progressRows, views),
+      loadRecommendationPool({
+        favoriteIds,
+        ratings: userRatings,
+        watchProgress,
+        watchedIds,
+      }),
+    ]);
 
-    const featured = allFilms.find((f) => f.featured) || allFilms[0] || null;
+    const sanitize = <T extends { id: string; videoUrl: string }>(items: T[]) =>
+      sanitizeFilmsForClient(items, accessOptions);
 
-    const topRated = [...allFilms]
-      .sort((a, b) => b.rating - a.rating)
-      .slice(0, 10);
-
-    const newReleases = [...allFilms]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 12);
-
-    const newFilmIds = allFilms
-      .filter((f) => isNewFilm(f.createdAt))
-      .map((f) => f.id);
-
-    const recommendedForYou = getRecommendedForUser(
-      allFilms,
-      watchedIds,
-      favoriteIds,
-      userRatings
-    );
-
-    const filmMap = new Map(allFilms.map((f) => [f.id, f]));
-    const continueWatching: typeof allFilms = [];
-    const seenContinue = new Set<string>();
-
-    for (const row of progressRows) {
-      if (seenContinue.has(row.filmId)) continue;
-      if (row.progressPercent >= 95) continue;
-      const film = filmMap.get(row.filmId);
-      if (film) {
-        continueWatching.push(film);
-        seenContinue.add(row.filmId);
-      }
-      if (continueWatching.length >= 8) break;
-    }
-
-    if (continueWatching.length < 8) {
-      for (const view of viewEvents) {
-        if (seenContinue.has(view.filmId)) continue;
-        const film = filmMap.get(view.filmId);
-        if (film) {
-          continueWatching.push(film);
-          seenContinue.add(view.filmId);
-        }
-        if (continueWatching.length >= 8) break;
-      }
-    }
-
-    const byCategory = ["drama", "comedy", "animation", "sci-fi"].map((cat) => ({
-      category: cat,
-      films: allFilms.filter((f) => f.category === cat).slice(0, 12),
-    }));
+    const collections = featuredCollections.map((collection) => {
+      const serialized = serializeCollection(collection);
+      return {
+        ...serialized,
+        films: sanitize(serialized.films),
+      };
+    });
 
     return NextResponse.json(
       {
-        films,
-        featured,
-        topRated,
-        newReleases,
-        recommendedForYou,
-        continueWatching,
-        byCategory,
+        films: sanitize(paginatedResult.films),
+        nextCursor: paginatedResult.nextCursor,
+        featured: curated.featured
+          ? sanitizeFilmForClient(curated.featured, accessOptions)
+          : null,
+        topRated: sanitize(curated.topRated),
+        newReleases: sanitize(curated.newReleases),
+        recommendedForYou: sanitize(recommendedForYou),
+        continueWatching: sanitize(continueWatching),
+        trending: sanitize(trending),
+        quickWatch: sanitize(quickWatch),
+        collections,
+        byCategory: curated.byCategory.map((row) => ({
+          ...row,
+          films: sanitize(row.films),
+        })),
         favoriteIds,
         watchedIds,
-        newFilmIds,
+        newFilmIds: curated.newFilmIds,
         watchProgress,
         userRatings,
         hasStreamingAccess: streamingAccess,
-        resultCount: films.length,
+        resultCount: paginatedResult.resultCount,
       },
       {
         headers: {

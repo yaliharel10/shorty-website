@@ -29,6 +29,7 @@ const updateSchema = z.object({
   duration: z.number().int().positive().optional(),
   year: z.number().int().optional(),
   featured: z.boolean().optional(),
+  published: z.boolean().optional(),
 });
 
 export async function PATCH(request: Request) {

@@ -11,7 +11,7 @@ import { loginSchema, registerSchema } from "@/lib/validation";
 import { userSessionSelect } from "@/lib/user-session";
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, "auth", 10, 15 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "auth", 10, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         select: userSessionSelect,
       });
 
-      return issueAuthResponse(user, request);
+      return issueAuthResponse(user, request, {}, "signup");
     }
 
     if (action === "login") {
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       }
 
       const { password: _, ...sessionFields } = user;
-      return issueAuthResponse(sessionFields, request);
+      return issueAuthResponse(sessionFields, request, {}, "login");
     }
 
     return apiError("Invalid action", 400);

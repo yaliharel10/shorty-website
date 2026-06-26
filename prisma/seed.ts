@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "../src/lib/db";
 import { slugifyName } from "../src/lib/person-utils";
+import { stringifyJsonArray } from "../src/lib/film-metadata";
 
 const peopleData = [
   {
@@ -138,6 +139,15 @@ const filmData = [
     duration: 18,
   },
   {
+    title: "Blink",
+    category: "experimental",
+    rating: 8.0,
+    posterUrl: "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=400&h=600&fit=crop",
+    description: "A micro film about memory, told in four minutes without dialogue.",
+    year: 2025,
+    duration: 4,
+  },
+  {
     title: "Neon Drift",
     category: "sci-fi",
     rating: 8.7,
@@ -254,6 +264,8 @@ const characterNames = [
 ];
 
 async function main() {
+  await prisma.collectionFilm.deleteMany();
+  await prisma.collection.deleteMany();
   await prisma.viewEvent.deleteMany();
   await prisma.rating.deleteMany();
   await prisma.favorite.deleteMany();
@@ -353,15 +365,43 @@ async function main() {
   const videoUrl = "https://www.youtube.com/embed/KVZ-P-ZI6W4";
   const monthKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
+  const moodByCategory: Record<string, string[]> = {
+    drama: ["emotional", "dark"],
+    comedy: ["uplifting", "funny"],
+    animation: ["uplifting", "surreal"],
+    "sci-fi": ["sci-fi", "surreal", "experimental"],
+  };
+
+  const countries = ["US", "UK", "AU", "CA", "FR", "DE"];
+
+  const createdFilmIds: string[] = [];
+
   for (let i = 0; i < filmData.length; i++) {
     const film = filmData[i];
+    const moods = moodByCategory[film.category] ?? ["emotional"];
     const filmRecord = await prisma.film.create({
       data: {
-        ...film,
+        title: film.title,
+        description: film.description,
+        category: film.category,
+        genres: stringifyJsonArray([film.category]),
+        moods: stringifyJsonArray(moods),
+        tags: stringifyJsonArray([film.category, ...moods.slice(0, 1)]),
+        language: "en",
+        country: countries[i % countries.length],
+        rating: film.rating,
+        posterUrl: film.posterUrl,
         videoUrl,
+        featured: film.featured ?? false,
+        published: true,
+        trendingScore: film.rating,
+        year: film.year,
+        duration: film.duration,
         monthlyFreeMonth: film.featured ? monthKey : undefined,
       },
     });
+
+    createdFilmIds.push(filmRecord.id);
 
     const shuffledActors = [...actors].sort(() => Math.random() - 0.5).slice(0, 2);
     const director = directors[i % directors.length];
@@ -385,8 +425,60 @@ async function main() {
     await prisma.filmCredit.createMany({ data: credits });
   }
 
+  const topRatedIds = createdFilmIds.slice(0, 6);
+  const quickIds = createdFilmIds.filter((_, i) => filmData[i]?.duration <= 10);
+  const sciFiIds = createdFilmIds.filter((_, i) => filmData[i]?.category === "sci-fi");
+
+  const collections = [
+    {
+      slug: "best-shorts-2026",
+      title: "Best Short Films of 2026",
+      description: "Our editors' picks for the most essential short films streaming on Shorty right now.",
+      featured: true,
+      sortOrder: 1,
+      filmIds: topRatedIds,
+    },
+    {
+      slug: "award-winning-festival-shorts",
+      title: "Award-Winning Festival Shorts",
+      description: "Festival favorites and prize-winners — curated for cinematic impact in under 30 minutes.",
+      featured: true,
+      sortOrder: 2,
+      filmIds: topRatedIds.slice(0, 5),
+    },
+    {
+      slug: "quick-watch-under-10",
+      title: "Mind-Bending Sci-Fi Under 10 Minutes",
+      description: "High-concept science fiction you can watch on your coffee break.",
+      featured: true,
+      sortOrder: 3,
+      mood: "sci-fi",
+      filmIds: sciFiIds.length ? sciFiIds : quickIds.slice(0, 4),
+    },
+    {
+      slug: "australian-indie-shorts",
+      title: "Australian Indie Shorts",
+      description: "Voices from the Australian indie scene — bold stories, tight runtimes.",
+      featured: true,
+      sortOrder: 4,
+      country: "AU",
+      filmIds: createdFilmIds.slice(2, 8),
+    },
+  ];
+
+  for (const col of collections) {
+    const { filmIds, ...data } = col;
+    await prisma.collection.create({
+      data: {
+        ...data,
+        films: {
+          create: filmIds.map((filmId, sortOrder) => ({ filmId, sortOrder })),
+        },
+      },
+    });
+  }
+
   console.log("Database seeded successfully!");
-  console.log(`People: ${people.length} | Monthly free month: ${monthKey}`);
   console.log("\n--- Demo accounts (password for all users: demo1234) ---");
   console.log("admin / admin123          → Admin panel access");
   console.log("demo / demo1234           → Standard subscriber (full access)");

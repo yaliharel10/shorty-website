@@ -10,7 +10,7 @@ import { clearSessionCookieOptions } from "@/lib/auth";
 import { revokeAllUserSessions } from "@/lib/sessions";
 
 export async function DELETE(request: Request) {
-  const limited = enforceRateLimit(request, "delete-account", 3, 60 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "delete-account", 3, 60 * 60 * 1000);
   if (limited) return limited;
 
   try {

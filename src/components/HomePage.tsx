@@ -53,13 +53,18 @@ function HomeContent() {
   const [modalAutoplay, setModalAutoplay] = useState(true);
   const [modalDetails, setModalDetails] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchPeople, setSearchPeople] = useState<PersonSummary[]>([]);
   const [filters, setFilters] = useState<FilmFilterState>(DEFAULT_FILM_FILTERS);
   const [filterMeta, setFilterMeta] = useState<FilmFilterMeta | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
 
-  const fetchFilms = useCallback(async () => {
-    setLoading(true);
+  const fetchFilms = useCallback(async (cursor?: string | null) => {
+    if (cursor) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     const params = new URLSearchParams();
     if (showFavorites) {
       params.set("favorites", "true");
@@ -67,17 +72,30 @@ function HomeContent() {
       params.set("category", category);
     }
     if (debouncedSearch) params.set("search", debouncedSearch);
+    if (cursor) params.set("cursor", cursor);
     filmFiltersToSearchParams(filters, params);
 
     try {
       const res = await fetch(`/api/films?${params}`);
       if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
-      setData(json);
+      if (cursor) {
+        setData((prev) =>
+          prev
+            ? {
+                ...json,
+                films: [...prev.films, ...json.films],
+              }
+            : json
+        );
+      } else {
+        setData(json);
+      }
     } catch {
       toast("Failed to load films", "error");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [category, debouncedSearch, showFavorites, filters, toast]);
 
@@ -135,8 +153,12 @@ function HomeContent() {
 
   const openFilm = (film: Film | string, mode: "play" | "details" = "play") => {
     const id = typeof film === "string" ? film : film.id;
-    setModalAutoplay(mode === "play");
-    setModalDetails(mode === "details");
+    if (mode === "play") {
+      router.push(`/watch/${id}`);
+      return;
+    }
+    setModalAutoplay(false);
+    setModalDetails(true);
     setSelectedFilmId(id);
     router.replace(`/browse?watch=${id}`, { scroll: false });
   };
@@ -387,6 +409,17 @@ function HomeContent() {
                 ))}
               </div>
             )}
+            {data?.nextCursor && (
+              <div className="mt-10 text-center">
+                <button
+                  onClick={() => fetchFilms(data.nextCursor)}
+                  disabled={loadingMore}
+                  className="rounded-lg border border-[#333] px-6 py-3 text-sm font-semibold transition hover:border-[#ff7a18] hover:text-[#ff7a18] disabled:opacity-50"
+                >
+                  {loadingMore ? "Loading…" : "Load more"}
+                </button>
+              </div>
+            )}
             {(debouncedSearch || filtersActive) &&
               data?.films.length === 0 &&
               searchPeople.length === 0 && (
@@ -424,9 +457,44 @@ function HomeContent() {
                 onFilmClick={(f) => openFilm(f, "play")}
               />
             )}
+            {data?.quickWatch && data.quickWatch.length > 0 && (
+              <FilmRow
+                title="Quick Watch — Under 10 Minutes"
+                films={data.quickWatch}
+                favoriteIds={data.favoriteIds}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onFilmClick={(f) => openFilm(f, "play")}
+              />
+            )}
+            {data?.trending && data.trending.length > 0 && (
+              <FilmRow
+                title="Trending This Week"
+                films={data.trending}
+                favoriteIds={data.favoriteIds}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                onFilmClick={(f) => openFilm(f)}
+              />
+            )}
+            {data?.collections?.map((collection) => (
+              <FilmRow
+                key={collection.id}
+                title={collection.title}
+                films={collection.films}
+                favoriteIds={data.favoriteIds}
+                watchedIds={data.watchedIds}
+                newFilmIds={data.newFilmIds}
+                watchProgress={data.watchProgress}
+                seeAllHref={`/collections/${collection.slug}`}
+                onFilmClick={(f) => openFilm(f)}
+              />
+            ))}
             {data?.recommendedForYou && data.recommendedForYou.length > 0 && (
               <FilmRow
-                title="Recommended for You"
+                title="Because you watched…"
                 films={data.recommendedForYou}
                 favoriteIds={data.favoriteIds}
                 watchedIds={data.watchedIds}

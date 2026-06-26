@@ -15,11 +15,16 @@ export async function GET() {
     }
 
     const films = await prisma.film.findMany({
+      where: { published: true },
       select: {
         id: true,
         title: true,
         description: true,
         category: true,
+        genres: true,
+        moods: true,
+        language: true,
+        country: true,
         rating: true,
         year: true,
         duration: true,

@@ -2,9 +2,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { handleApiError } from "@/lib/api-utils";
+import { handleApiError, enforceRateLimit, PUBLIC_CACHE_HEADERS } from "@/lib/api-utils";
 import { isNewFilm } from "@/lib/recommendations";
-import { genreLabel } from "@/lib/film-filters";
+import { genreLabel } from "@/lib/film-metadata";
 
 const publicFilmSelect = {
   id: true,
@@ -20,9 +20,13 @@ const publicFilmSelect = {
 } as const;
 
 /** Public catalog for guest browse — metadata only, no video URLs. */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const limited = await enforceRateLimit(request, "catalog", 120, 60_000);
+    if (limited) return limited;
+
     const allFilms = await prisma.film.findMany({
+      where: { published: true },
       select: publicFilmSelect,
       orderBy: { createdAt: "desc" },
     });
@@ -43,14 +47,17 @@ export async function GET() {
       films: allFilms.filter((f) => f.category === cat).slice(0, 12),
     }));
 
-    return NextResponse.json({
-      filmCount: allFilms.length,
-      featured,
-      topRated,
-      newReleases,
-      newFilmIds,
-      byCategory,
-    });
+    return NextResponse.json(
+      {
+        filmCount: allFilms.length,
+        featured,
+        topRated,
+        newReleases,
+        newFilmIds,
+        byCategory,
+      },
+      { headers: PUBLIC_CACHE_HEADERS }
+    );
   } catch (error) {
     return handleApiError(error, "Failed to load catalog");
   }

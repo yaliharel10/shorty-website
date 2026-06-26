@@ -10,6 +10,7 @@ import {
 import { prisma } from "@/lib/db";
 import { sessionToClientUser } from "@/lib/client-user";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
+import { touchUserSession, validateUserSession } from "@/lib/sessions";
 
 function subscriptionFieldsChanged(
   jwt: Awaited<ReturnType<typeof getSession>>,
@@ -43,6 +44,16 @@ export async function GET() {
     const response = NextResponse.json({ user: null, code: "SESSION_EXPIRED" });
     response.cookies.set(clearSessionCookieOptions());
     return response;
+  }
+
+  if (session.sessionId) {
+    const valid = await validateUserSession(session.sessionId);
+    if (!valid) {
+      const response = NextResponse.json({ user: null, code: "SESSION_REVOKED" });
+      response.cookies.set(clearSessionCookieOptions());
+      return response;
+    }
+    await touchUserSession(session.sessionId);
   }
 
   const freshUser = toPublicUser(dbUser);

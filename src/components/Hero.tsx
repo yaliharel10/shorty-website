@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Info, Play } from "lucide-react";
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -107,6 +108,7 @@ type FilmRowProps = {
   watchProgress?: Record<string, number>;
   continueIds?: string[];
   onSeeAll?: () => void;
+  seeAllHref?: string;
   onFilmClick: (film: Film) => void;
 };
 
@@ -119,6 +121,7 @@ export function FilmRow({
   watchProgress = {},
   continueIds = [],
   onSeeAll,
+  seeAllHref,
   onFilmClick,
 }: FilmRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
@@ -137,7 +140,14 @@ export function FilmRow({
       <div className="mb-4 flex items-center justify-between px-4 md:px-8 lg:px-12">
         <div className="flex items-center gap-3">
           <h2 className="text-lg font-bold md:text-xl">{title}</h2>
-          {onSeeAll && (
+          {seeAllHref ? (
+            <Link
+              href={seeAllHref}
+              className="text-sm font-medium text-[#888] transition hover:text-[#ff7a18]"
+            >
+              View collection →
+            </Link>
+          ) : onSeeAll ? (
             <button
               type="button"
               onClick={onSeeAll}
@@ -145,7 +155,7 @@ export function FilmRow({
             >
               See all →
             </button>
-          )}
+          ) : null}
         </div>
         <div className="flex gap-1 opacity-100 transition lg:opacity-0 lg:group-hover/row:opacity-100">
           <button

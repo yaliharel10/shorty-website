@@ -38,6 +38,16 @@ export type Film = {
   title: string;
   description: string;
   category: string;
+  genres?: string[];
+  moods?: string[];
+  tags?: string[];
+  language?: string;
+  country?: string | null;
+  durationTier?: "micro" | "short" | "extended";
+  durationTierLabel?: string;
+  runtimeLabel?: string;
+  runtimeCompact?: string;
+  quickWatch?: boolean;
   rating: number;
   posterUrl: string;
   videoUrl: string;
@@ -51,6 +61,15 @@ export type Film = {
     favorites: number;
     views: number;
   };
+};
+
+export type CollectionSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  heroUrl: string | null;
+  films: Film[];
 };
 
 export type User = {
@@ -75,6 +94,9 @@ export type FilmsResponse = {
   newReleases: Film[];
   recommendedForYou: Film[];
   continueWatching: Film[];
+  trending: Film[];
+  quickWatch: Film[];
+  collections: CollectionSummary[];
   byCategory: { category: string; films: Film[] }[];
   favoriteIds: string[];
   watchedIds: string[];
@@ -83,6 +105,7 @@ export type FilmsResponse = {
   userRatings: Record<string, number>;
   hasStreamingAccess: boolean;
   resultCount?: number;
+  nextCursor?: string | null;
 };
 
 // Legacy alias

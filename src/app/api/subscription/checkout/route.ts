@@ -30,7 +30,7 @@ async function getOrCreateCustomer(userId: string, email: string) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceRateLimit(request, "checkout", 10, 15 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "checkout", 10, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {

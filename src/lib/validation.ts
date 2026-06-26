@@ -82,7 +82,7 @@ export const filmSchema = z.object({
   category: z.enum(["drama", "comedy", "animation", "sci-fi"]),
   posterUrl: z.string().url(),
   videoUrl: z.string().url(),
-  duration: z.number().int().positive().max(180).optional(),
+  duration: z.number().int().positive().max(30).optional(),
   year: z.number().int().min(1900).max(2100).optional(),
   featured: z.boolean().optional(),
 });

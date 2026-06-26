@@ -1,30 +1,34 @@
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
 type Bucket = { count: number; resetAt: number };
 
-const store = new Map<string, Bucket>();
+const memoryStore = new Map<string, Bucket>();
+const upstashLimiters = new Map<string, Ratelimit>();
 
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
 
-function cleanup() {
+function cleanupMemory() {
   const now = Date.now();
   if (now - lastCleanup < CLEANUP_INTERVAL) return;
   lastCleanup = now;
-  for (const [key, bucket] of store) {
-    if (now > bucket.resetAt) store.delete(key);
+  for (const [key, bucket] of memoryStore) {
+    if (now > bucket.resetAt) memoryStore.delete(key);
   }
 }
 
-export function rateLimit(
+function memoryRateLimit(
   key: string,
   limit: number,
   windowMs: number
 ): { ok: true } | { ok: false; retryAfter: number } {
-  cleanup();
+  cleanupMemory();
   const now = Date.now();
-  const bucket = store.get(key);
+  const bucket = memoryStore.get(key);
 
   if (!bucket || now > bucket.resetAt) {
-    store.set(key, { count: 1, resetAt: now + windowMs });
+    memoryStore.set(key, { count: 1, resetAt: now + windowMs });
     return { ok: true };
   }
 
@@ -37,6 +41,53 @@ export function rateLimit(
 
   bucket.count += 1;
   return { ok: true };
+}
+
+function getUpstashLimiter(limit: number, windowMs: number) {
+  const windowSec = Math.max(1, Math.ceil(windowMs / 1000));
+  const cacheKey = `${limit}:${windowSec}`;
+  let limiter = upstashLimiters.get(cacheKey);
+  if (!limiter) {
+    limiter = new Ratelimit({
+      redis: Redis.fromEnv(),
+      limiter: Ratelimit.slidingWindow(limit, `${windowSec} s`),
+      prefix: "shorty_rl",
+      analytics: true,
+    });
+    upstashLimiters.set(cacheKey, limiter);
+  }
+  return limiter;
+}
+
+function upstashConfigured() {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+}
+
+export async function rateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<{ ok: true } | { ok: false; retryAfter: number }> {
+  if (upstashConfigured()) {
+    try {
+      const limiter = getUpstashLimiter(limit, windowMs);
+      const result = await limiter.limit(key);
+      if (!result.success) {
+        const retryAfter = Math.max(
+          1,
+          Math.ceil((result.reset - Date.now()) / 1000)
+        );
+        return { ok: false, retryAfter };
+      }
+      return { ok: true };
+    } catch {
+      // Fall through to in-memory if Redis is unreachable
+    }
+  }
+
+  return memoryRateLimit(key, limit, windowMs);
 }
 
 export function getClientIp(request: Request): string {

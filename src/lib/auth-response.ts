@@ -5,15 +5,22 @@ import {
 } from "@/lib/auth";
 import type { DbUserSession } from "@/lib/user-session";
 import { toPublicUser } from "@/lib/user-session";
+import { createUserSession } from "@/lib/sessions";
+import { trackEvent } from "@/lib/analytics";
 
-/** Fast login — JWT cookie only, no session DB write. */
 export async function issueAuthResponse(
   user: DbUserSession,
-  _request: Request,
-  body: Record<string, unknown> = {}
+  request: Request,
+  body: Record<string, unknown> = {},
+  analyticsEvent?: "login" | "signup"
 ) {
   const publicUser = toPublicUser(user);
-  const token = await createToken(publicUser);
+  const sessionId = await createUserSession(user.id, request);
+  const token = await createToken(publicUser, sessionId);
+
+  if (analyticsEvent) {
+    trackEvent(analyticsEvent, { userId: user.id }, user.id);
+  }
 
   const response = NextResponse.json({ user: publicUser, ...body });
   response.cookies.set(sessionCookieOptions(token));
@@ -22,12 +29,13 @@ export async function issueAuthResponse(
 
 export async function reissueAuthResponse(
   user: DbUserSession,
-  _request: Request,
-  _tokenId: string | null | undefined,
+  request: Request,
+  tokenId: string | null | undefined,
   body: Record<string, unknown> = {}
 ) {
   const publicUser = toPublicUser(user);
-  const token = await createToken(publicUser);
+  const sessionId = tokenId ?? (await createUserSession(user.id, request));
+  const token = await createToken(publicUser, sessionId);
   const response = NextResponse.json({ user: publicUser, ...body });
   response.cookies.set(sessionCookieOptions(token));
   return response;

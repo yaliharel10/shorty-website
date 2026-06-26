@@ -59,7 +59,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const limited = enforceRateLimit(request, "account-update", 10, 15 * 60 * 1000);
+  const limited = await enforceRateLimit(request, "account-update", 10, 15 * 60 * 1000);
   if (limited) return limited;
 
   try {

@@ -9,7 +9,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const limited = enforceRateLimit(request, "favorites", 30, 60 * 1000);
+  const limited = await enforceRateLimit(request, "favorites", 30, 60 * 1000);
   if (limited) return limited;
 
   try {
