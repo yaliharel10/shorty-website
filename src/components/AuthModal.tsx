@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
-import { loginTimeoutMs } from "@/lib/hosting";
 
 type AuthModalProps = {
   open: boolean;
@@ -14,6 +13,10 @@ type AuthModalProps = {
   defaultMode?: "login" | "register";
   redirectTo?: string;
 };
+
+function warmAuthBackend() {
+  void fetch("/api/health", { cache: "no-store" }).catch(() => {});
+}
 
 export function AuthModal({
   open,
@@ -24,72 +27,44 @@ export function AuthModal({
   const [isLogin, setIsLogin] = useState(defaultMode === "login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingHint, setLoadingHint] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [forgotOpen, setForgotOpen] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (open) {
       setIsLogin(defaultMode === "login");
       setError("");
-      setLoadingHint("");
-      // Wake server + DB before submit (cold starts on Vercel/Turso can be slow).
-      Promise.all([
-        fetch("/api/health", { cache: "no-store" }),
-        fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" }),
-      ]).catch(() => {});
+      warmAuthBackend();
     }
-    return () => {
-      abortRef.current?.abort();
-    };
   }, [open, defaultMode]);
-
-  useEffect(() => {
-    if (!loading) return;
-    const slow = setTimeout(
-      () => setLoadingHint("Still connecting — first sign-in can take up to 30 seconds"),
-      5000
-    );
-    return () => clearTimeout(slow);
-  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    setLoadingHint("Signing in...");
 
     const form = new FormData(e.currentTarget);
     const identifier = (form.get("identifier") as string).trim();
     const email = (form.get("email") as string).trim();
-    const password = form.get("password") as string;
+    const passwordValue = form.get("password") as string;
     const confirm = form.get("confirm") as string;
 
-    if (!isLogin && password !== confirm) {
+    if (!isLogin && passwordValue !== confirm) {
       setError("Passwords do not match");
       setLoading(false);
-      setLoadingHint("");
       return;
     }
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const timeoutMs = loginTimeoutMs();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
-        signal: controller.signal,
         body: JSON.stringify(
           isLogin
-            ? { action: "login", identifier, password }
-            : { action: "register", username: identifier, email, password }
+            ? { action: "login", identifier, password: passwordValue }
+            : { action: "register", username: identifier, email, password: passwordValue }
         ),
       });
 
@@ -103,9 +78,7 @@ export function AuthModal({
           );
         }
         if (res.status === 502 || res.status === 503) {
-          throw new Error(
-            "Server unavailable — use https://shorty-website-five.vercel.app (wrong URL returns 502)"
-          );
+          throw new Error("Server is waking up — please try again in a few seconds.");
         }
         throw new Error(`Server error (${res.status})`);
       }
@@ -114,21 +87,10 @@ export function AuthModal({
         throw new Error(data.error || "Authentication failed");
       }
 
-      // Full-page navigation — reliably commits cookie and never leaves UI stuck.
       window.location.assign(redirectTo);
-      return;
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError(
-          "Sign-in timed out. Wait a few seconds and try again — the first attempt after idle can be slow."
-        );
-      } else {
-        setError(err instanceof Error ? err.message : "Something went wrong");
-      }
+      setError(err instanceof Error ? err.message : "Something went wrong");
       setLoading(false);
-      setLoadingHint("");
-    } finally {
-      clearTimeout(timeout);
     }
   };
 
@@ -239,10 +201,6 @@ export function AuthModal({
           </FormField>
         )}
 
-        {loadingHint && (
-          <p className="text-center text-xs text-[#888]">{loadingHint}</p>
-        )}
-
         {error && (
           <p role="alert" className="rounded-lg bg-red-950/50 px-3 py-2 text-center text-sm text-red-400">
             {error}
@@ -254,7 +212,7 @@ export function AuthModal({
           disabled={loading}
           className="rounded-lg bg-[#ff7a18] py-3 text-sm font-bold transition hover:bg-[#ff9533] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff7a18] disabled:opacity-50"
         >
-          {loading ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+          {loading ? "Signing in..." : isLogin ? "Sign In" : "Create Account"}
         </button>
       </form>
 

@@ -12,10 +12,13 @@ export async function issueAuthResponse(
   user: DbUserSession,
   request: Request,
   body: Record<string, unknown> = {},
-  analyticsEvent?: "login" | "signup"
+  analyticsEvent?: "login" | "signup",
+  options?: { fast?: boolean }
 ) {
   const publicUser = toPublicUser(user);
-  const sessionId = await createUserSession(user.id, request);
+  const sessionId = options?.fast
+    ? undefined
+    : await createUserSession(user.id, request);
   const token = await createToken(publicUser, sessionId);
 
   if (analyticsEvent) {

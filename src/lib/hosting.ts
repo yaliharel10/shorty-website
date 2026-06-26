@@ -13,13 +13,9 @@ export function authCheckTimeoutMs() {
   return isSlowHost() ? 30000 : 5000;
 }
 
-/** Login / register submit — allow headroom for serverless cold starts + Turso. */
+/** Login / register submit — used by fetchJson helpers only. */
 export function loginTimeoutMs() {
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    if (host.endsWith(".vercel.app") || host.includes("vercel.app")) return 45000;
-  }
-  return isSlowHost() ? 90000 : 30000;
+  return isSlowHost() ? 90000 : 12000;
 }
 
 export function defaultFetchTimeoutMs() {

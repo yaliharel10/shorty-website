@@ -65,6 +65,13 @@ function upstashConfigured() {
   );
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export async function rateLimit(
   key: string,
   limit: number,
@@ -73,7 +80,10 @@ export async function rateLimit(
   if (upstashConfigured()) {
     try {
       const limiter = getUpstashLimiter(limit, windowMs);
-      const result = await limiter.limit(key);
+      const result = await withTimeout(limiter.limit(key), 1500, {
+        success: true,
+        reset: Date.now() + windowMs,
+      } as Awaited<ReturnType<Ratelimit["limit"]>>);
       if (!result.success) {
         const retryAfter = Math.max(
           1,

@@ -8,8 +8,6 @@ import {
   useState,
 } from "react";
 import type { User } from "@/types";
-import { fetchJson } from "@/lib/utils";
-import { authCheckTimeoutMs, loginTimeoutMs } from "@/lib/hosting";
 
 type AuthContextType = {
   user: User | null;
@@ -33,11 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const { data } = await fetchJson<{ user: User | null; code?: string }>(
-        "/api/auth/me",
-        { credentials: "same-origin" },
-        authCheckTimeoutMs()
-      );
+      const res = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = (await res.json()) as { user: User | null };
       setUser(data.user);
     } catch {
       setUser(null);

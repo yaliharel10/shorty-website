@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       }
 
       const { password: _, ...sessionFields } = user;
-      return issueAuthResponse(sessionFields, request, {}, "login");
+      return issueAuthResponse(sessionFields, request, {}, "login", { fast: true });
     }
 
     return apiError("Invalid action", 400);
