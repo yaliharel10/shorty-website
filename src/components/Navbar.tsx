@@ -18,6 +18,8 @@ import {
 import { cn, avatarUrl, NAV_CATEGORIES } from "@/lib/utils";
 import { useScrollY } from "@/hooks/useUI";
 import { useAuth } from "./AuthProvider";
+import { SearchInput } from "@/components/SearchInput";
+import { NotificationBell } from "@/components/NotificationBell";
 
 type NavbarProps = {
   activeCategory: string;
@@ -32,6 +34,8 @@ type NavbarProps = {
   favoriteCount?: number;
   filterCount?: number;
   onOpenFilters?: () => void;
+  onPickFilm?: (id: string) => void;
+  onPickPerson?: (slug: string) => void;
 };
 
 export function Navbar({
@@ -47,6 +51,8 @@ export function Navbar({
   favoriteCount = 0,
   filterCount = 0,
   onOpenFilters,
+  onPickFilm,
+  onPickPerson,
 }: NavbarProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -150,19 +156,20 @@ export function Navbar({
                 )}
               </button>
             )}
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666]" />
-              <input
-                type="text"
+            <div className="relative hidden w-48 sm:block md:w-64">
+              <SearchInput
                 value={search}
-                onChange={(e) => onSearchChange(e.target.value)}
+                onChange={onSearchChange}
                 placeholder="Search films & people... (F)"
-                className="w-48 rounded-full border border-[#333] bg-[#1a1a1a]/80 py-2 pl-9 pr-4 text-sm text-white outline-none transition focus:border-[#ff7a18] focus:ring-1 focus:ring-[#ff7a18]/30 md:w-64"
+                onPickFilm={onPickFilm}
+                onPickPerson={onPickPerson}
               />
             </div>
 
             {user ? (
-              <div className="relative">
+              <div className="flex items-center gap-1">
+                <NotificationBell />
+                <div className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 rounded-full glass px-2 py-1.5 transition hover:bg-white/10"
@@ -252,6 +259,7 @@ export function Navbar({
                   </>
                 )}
               </div>
+              </div>
             ) : (
               <button
                 onClick={onOpenAuth}
@@ -280,13 +288,13 @@ export function Navbar({
               </button>
             </div>
             <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666]" />
-              <input
-                type="text"
+              <SearchInput
                 value={search}
-                onChange={(e) => onSearchChange(e.target.value)}
+                onChange={onSearchChange}
                 placeholder="Search films & people..."
-                className="w-full rounded-lg border border-[#333] bg-[#1a1a1a] py-2.5 pl-9 pr-4 text-sm outline-none focus:border-[#ff7a18]"
+                inputClassName="rounded-lg"
+                onPickFilm={onPickFilm}
+                onPickPerson={onPickPerson}
               />
             </div>
             <p className="mb-3 text-xs font-bold tracking-widest text-[#555]">

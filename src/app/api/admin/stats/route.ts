@@ -15,6 +15,8 @@ export async function GET() {
       viewCount,
       favoriteCount,
       ratingCount,
+      activeSubscribers,
+      trialingUsers,
       recentViews,
       topFilms,
       recentUsers,
@@ -25,6 +27,18 @@ export async function GET() {
       prisma.viewEvent.count(),
       prisma.favorite.count(),
       prisma.rating.count(),
+      prisma.user.count({
+        where: {
+          subscriptionStatus: "active",
+          subscriptionTier: { not: "none" },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          trialEndsAt: { gt: new Date() },
+          OR: [{ subscriptionStatus: null }, { subscriptionStatus: { not: "active" } }],
+        },
+      }),
       prisma.viewEvent.findMany({
         take: 10,
         orderBy: { createdAt: "desc" },
@@ -75,6 +89,9 @@ export async function GET() {
         viewCount,
         favoriteCount,
         ratingCount,
+        activeSubscribers,
+        trialingUsers,
+        estimatedMrr: activeSubscribers * 4.99,
       },
       recentViews,
       topFilms,

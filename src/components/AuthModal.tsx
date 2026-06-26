@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Modal } from "./Modal";
 import { FormField, inputClassName } from "./FormField";
 import { ForgotPasswordModal } from "./ForgotPasswordModal";
+import { PasswordStrengthMeter } from "./PasswordStrengthMeter";
 import { loginTimeoutMs } from "@/lib/hosting";
 
 type AuthModalProps = {
@@ -27,6 +28,7 @@ export function AuthModal({
   const [loading, setLoading] = useState(false);
   const [loadingHint, setLoadingHint] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState("");
   const [forgotOpen, setForgotOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -196,6 +198,8 @@ export function AuthModal({
               className={inputClassName}
               placeholder="Password"
               disabled={loading}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
             <button
               type="button"
@@ -210,6 +214,7 @@ export function AuthModal({
               )}
             </button>
           </div>
+          {!isLogin && <PasswordStrengthMeter password={password} />}
         </FormField>
 
         {isLogin && (

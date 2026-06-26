@@ -81,13 +81,34 @@ body {
   height: 6px;
 }
 
+.hero-mesh {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(255, 122, 24, 0.15), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(255, 80, 0, 0.08), transparent 45%),
+    radial-gradient(ellipse 50% 60% at 60% 80%, rgba(120, 60, 200, 0.06), transparent 50%);
+  animation: meshPulse 12s ease-in-out infinite alternate;
+}
+
+@keyframes meshPulse {
+  from { opacity: 0.7; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.05); }
+}
+
+.premium-shadow {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.premium-shadow-hover:hover {
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 122, 24, 0.15);
+}
+
 .card-hover {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease;
 }
 
 .card-hover:hover {
-  transform: scale(1.05) translateY(-4px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  transform: scale(1.04) translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
   z-index: 10;
 }
 
@@ -242,6 +263,10 @@ body {
   }
 
   .hero-image {
+    animation: none;
+  }
+
+  .hero-mesh {
     animation: none;
   }
 }

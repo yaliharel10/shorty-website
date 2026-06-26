@@ -43,6 +43,39 @@ export const TURSO_SCHEMA_PATCHES: string[] = [
 
   // Backfill published for any legacy rows
   `UPDATE "Film" SET "published" = true WHERE "published" IS NULL`,
+
+  // User preferences
+  `ALTER TABLE "User" ADD COLUMN "autoplayNext" BOOLEAN NOT NULL DEFAULT true`,
+  `ALTER TABLE "User" ADD COLUMN "playbackSpeed" REAL NOT NULL DEFAULT 1`,
+  `ALTER TABLE "User" ADD COLUMN "subtitleLanguage" TEXT NOT NULL DEFAULT 'en'`,
+  `ALTER TABLE "User" ADD COLUMN "reduceMotionPref" BOOLEAN NOT NULL DEFAULT false`,
+
+  `CREATE TABLE IF NOT EXISTS "Profile" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "avatarUrl" TEXT,
+    "isKids" BOOLEAN NOT NULL DEFAULT false,
+    "pinHash" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Profile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "Profile_userId_idx" ON "Profile"("userId")`,
+
+  `CREATE TABLE IF NOT EXISTS "Notification" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "href" TEXT,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  )`,
+  `CREATE INDEX IF NOT EXISTS "Notification_userId_read_createdAt_idx" ON "Notification"("userId", "read", "createdAt")`,
 ];
 
 export function isIgnorablePatchError(message: string) {

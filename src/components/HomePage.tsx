@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { AuthModal } from "@/components/AuthModal";
@@ -22,6 +23,11 @@ import { SubscribeModal } from "@/components/SubscribeModal";
 import { BackToTop } from "@/components/BackToTop";
 import { FilmSearchFilters } from "@/components/FilmSearchFilters";
 import { KeyboardShortcuts, useKeyboardShortcuts } from "@/components/KeyboardShortcuts";
+import { PageTransition } from "@/components/PageTransition";
+import { OfflineBanner } from "@/components/OfflineBanner";
+import { GenreChips } from "@/components/GenreChips";
+import { SurpriseMeButton } from "@/components/SurpriseMeButton";
+import { ProfilesPicker } from "@/components/ProfilesPicker";
 import {
   activeFilterCount,
   DEFAULT_FILM_FILTERS,
@@ -33,7 +39,14 @@ import {
 import { trialDaysRemaining } from "@/lib/subscription";
 import { GuestBrowseContent } from "@/components/GuestBrowsePage";
 import { SiteFooter } from "@/components/SiteFooter";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { Film, FilmsResponse, PersonSummary } from "@/types";
+
+const ActivityFeed = dynamic(
+  () => import("@/components/ActivityFeed").then((m) => m.ActivityFeed),
+  { ssr: false }
+);
 
 function HomeContent() {
   const { user, loading: authLoading } = useAuth();
@@ -58,6 +71,7 @@ function HomeContent() {
   const [filters, setFilters] = useState<FilmFilterState>(DEFAULT_FILM_FILTERS);
   const [filterMeta, setFilterMeta] = useState<FilmFilterMeta | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const fetchFilms = useCallback(async (cursor?: string | null) => {
     if (cursor) {
@@ -118,6 +132,15 @@ function HomeContent() {
   }, [debouncedSearch]);
 
   useEffect(() => {
+    if (searchParams.get("favorites") === "1") setShowFavorites(true);
+    if (searchParams.get("search") === "1") {
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+      });
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (searchParams.get("signin") === "1" && !user) {
       setAuthOpen(true);
     }
@@ -174,6 +197,22 @@ function HomeContent() {
     setCategory(cat);
     setFilters(DEFAULT_FILM_FILTERS);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const toggleFavoriteForFilm = async (film: Film) => {
+    if (!user) {
+      setAuthOpen(true);
+      return;
+    }
+    const res = await fetch(`/api/favorites/${film.id}`, { method: "POST" });
+    const result = await res.json();
+    if (res.ok) {
+      toast(
+        result.isFavorite ? "Added to My List" : "Removed from My List",
+        "success"
+      );
+      fetchFilms();
+    }
   };
 
   const toggleFavoriteForFeatured = async () => {
@@ -238,6 +277,16 @@ function HomeContent() {
   const isBrowseHome =
     !showFavorites && !debouncedSearch && !filtersActive && category === "all";
 
+  const loadMore = useCallback(() => {
+    if (data?.nextCursor && !loadingMore && !loading) {
+      fetchFilms(data.nextCursor);
+    }
+  }, [data?.nextCursor, loadingMore, loading, fetchFilms]);
+
+  useInfiniteScroll(loadMoreRef, loadMore, {
+    enabled: Boolean(isFilteredBrowse && data?.nextCursor),
+  });
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#080808]">
@@ -251,7 +300,9 @@ function HomeContent() {
   }
 
   return (
+    <PageTransition>
     <div className="min-h-screen bg-[#080808]">
+      <OfflineBanner />
       <Navbar
         activeCategory={category}
         onCategoryChange={(cat) => {
@@ -281,7 +332,13 @@ function HomeContent() {
         showingFavorites={showFavorites}
         onOpenSubscribe={() => setSubscribeOpen(true)}
         favoriteCount={data?.favoriteIds.length ?? 0}
+        onPickFilm={(id) => router.push(`/browse/film/${id}`)}
+        onPickPerson={(slug) => router.push(`/people/${slug}`)}
       />
+
+      <div className="border-b border-[#222] px-4 py-2 md:px-8 lg:px-12">
+        <ProfilesPicker />
+      </div>
 
       {user && !user.hasStreamingAccess && (
         <div className="border-b border-[#ff7a18]/20 bg-[#ff7a18]/10 px-4 py-3 text-center text-sm md:px-8">
@@ -328,7 +385,7 @@ function HomeContent() {
 
       <main
         id="main-content"
-        className={showHero && !loading ? "relative z-0 pb-16 pt-10 md:pt-12" : "pt-20 pb-16"}
+        className={showHero && !loading ? "relative z-0 pb-24 pt-10 md:pb-16 md:pt-12" : "pb-24 pt-20 md:pb-16"}
       >
         {loading ? (
           isBrowseHome ? (
@@ -356,6 +413,9 @@ function HomeContent() {
                     isWatched={data.watchedIds.includes(film.id)}
                     progressPercent={data.watchProgress[film.id]}
                     onClick={() => openFilm(film)}
+                    onPlay={() => openFilm(film, "play")}
+                    onMoreInfo={() => openFilm(film, "details")}
+                    onToggleFavorite={() => toggleFavoriteForFilm(film)}
                   />
                 ))}
               </div>
@@ -405,19 +465,18 @@ function HomeContent() {
                     isWatched={data.watchedIds.includes(film.id)}
                     isNew={data.newFilmIds.includes(film.id)}
                     onClick={() => openFilm(film)}
+                    onPlay={() => openFilm(film, "play")}
+                    onMoreInfo={() => openFilm(film, "details")}
+                    onToggleFavorite={() => toggleFavoriteForFilm(film)}
                   />
                 ))}
               </div>
             )}
             {data?.nextCursor && (
-              <div className="mt-10 text-center">
-                <button
-                  onClick={() => fetchFilms(data.nextCursor)}
-                  disabled={loadingMore}
-                  className="rounded-lg border border-[#333] px-6 py-3 text-sm font-semibold transition hover:border-[#ff7a18] hover:text-[#ff7a18] disabled:opacity-50"
-                >
-                  {loadingMore ? "Loading…" : "Load more"}
-                </button>
+              <div ref={loadMoreRef} className="mt-10 flex justify-center py-6">
+                {loadingMore && (
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
+                )}
               </div>
             )}
             {(debouncedSearch || filtersActive) &&
@@ -432,6 +491,18 @@ function HomeContent() {
         ) : (
           <>
             <section className="px-4 pb-4 pt-2 md:px-8 lg:px-12">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <GenreChips
+                  active={category}
+                  onSelect={(cat) => {
+                    setShowFavorites(false);
+                    setCategory(cat);
+                    setFilters(DEFAULT_FILM_FILTERS);
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                />
+                <SurpriseMeButton onNeedAuth={() => setAuthOpen(true)} />
+              </div>
               <FilmSearchFilters
                 filters={filters}
                 onChange={(next) => {
@@ -445,6 +516,7 @@ function HomeContent() {
                 onToggleExpanded={() => setFiltersExpanded((v) => !v)}
               />
             </section>
+            {isBrowseHome && <ActivityFeed />}
             {data?.continueWatching && data.continueWatching.length > 0 && (
               <FilmRow
                 title="Continue Watching"
@@ -455,6 +527,9 @@ function HomeContent() {
                 watchProgress={data.watchProgress}
                 continueIds={data.continueWatching.map((f) => f.id)}
                 onFilmClick={(f) => openFilm(f, "play")}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
             {data?.quickWatch && data.quickWatch.length > 0 && (
@@ -466,6 +541,9 @@ function HomeContent() {
                 newFilmIds={data.newFilmIds}
                 watchProgress={data.watchProgress}
                 onFilmClick={(f) => openFilm(f, "play")}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
             {data?.trending && data.trending.length > 0 && (
@@ -477,6 +555,9 @@ function HomeContent() {
                 newFilmIds={data.newFilmIds}
                 watchProgress={data.watchProgress}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
             {data?.collections?.map((collection) => (
@@ -490,6 +571,9 @@ function HomeContent() {
                 watchProgress={data.watchProgress}
                 seeAllHref={`/collections/${collection.slug}`}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             ))}
             {data?.recommendedForYou && data.recommendedForYou.length > 0 && (
@@ -501,6 +585,9 @@ function HomeContent() {
                 newFilmIds={data.newFilmIds}
                 watchProgress={data.watchProgress}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
             {data?.newReleases && data.newReleases.length > 0 && (
@@ -513,6 +600,9 @@ function HomeContent() {
                 watchProgress={data.watchProgress}
                 onSeeAll={() => browseCategory("new")}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
             {data?.topRated && data.topRated.length > 0 && (
@@ -525,9 +615,12 @@ function HomeContent() {
                 watchProgress={data.watchProgress}
                 onSeeAll={() => browseCategory("top")}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             )}
-            {data?.byCategory.map((row) => (
+            {data?.byCategory?.map((row) => (
               <FilmRow
                 key={row.category}
                 title={categoryLabels[row.category] || row.category}
@@ -538,6 +631,9 @@ function HomeContent() {
                 watchProgress={data.watchProgress}
                 onSeeAll={() => browseCategory(row.category)}
                 onFilmClick={(f) => openFilm(f)}
+                onFilmPlay={(f) => openFilm(f, "play")}
+                onFilmDetails={(f) => openFilm(f, "details")}
+                onFilmFavorite={toggleFavoriteForFilm}
               />
             ))}
           </>
@@ -560,6 +656,13 @@ function HomeContent() {
         for shortcuts
       </div>
       <SiteFooter />
+
+      <MobileBottomNav
+        onSearchFocus={() => {
+          document.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
 
       <BackToTop />
 
@@ -594,6 +697,7 @@ function HomeContent() {
         }}
       />
     </div>
+    </PageTransition>
   );
 }
 

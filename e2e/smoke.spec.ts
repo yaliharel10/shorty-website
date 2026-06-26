@@ -19,6 +19,23 @@ test.describe("Shorty smoke tests", () => {
     expect(res.ok()).toBeTruthy();
   });
 
+  test("search suggestions API responds", async ({ request }) => {
+    const res = await request.get("/api/search/suggestions");
+    expect(res.ok()).toBeTruthy();
+    const data = await res.json();
+    expect(Array.isArray(data.films)).toBeTruthy();
+  });
+
+  test("offline page loads", async ({ page }) => {
+    await page.goto("/offline");
+    await expect(page.getByText(/offline/i)).toBeVisible();
+  });
+
+  test("404 page loads", async ({ page }) => {
+    await page.goto("/this-page-does-not-exist-xyz");
+    await expect(page.getByText(/not found|404/i).first()).toBeVisible();
+  });
+
   test("browse page loads for guests", async ({ page }) => {
     await page.goto("/browse");
     await expect(page.locator("body")).toBeVisible();

@@ -10,6 +10,8 @@ import {
   Star,
   TrendingUp,
   ArrowLeft,
+  DollarSign,
+  UserCheck,
 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 
@@ -20,6 +22,9 @@ type Stats = {
     viewCount: number;
     favoriteCount: number;
     ratingCount: number;
+    activeSubscribers: number;
+    trialingUsers: number;
+    estimatedMrr: number;
   };
   recentViews: {
     id: string;
@@ -143,12 +148,29 @@ function AdminDashboard() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
           <StatCard icon={Users} label="Users" value={data.stats.userCount} />
           <StatCard icon={Film} label="Films" value={data.stats.filmCount} />
           <StatCard icon={Eye} label="Views" value={data.stats.viewCount} />
           <StatCard icon={Heart} label="Favorites" value={data.stats.favoriteCount} />
           <StatCard icon={Star} label="Ratings" value={data.stats.ratingCount} />
+          <StatCard icon={UserCheck} label="Subscribers" value={data.stats.activeSubscribers} />
+          <StatCard icon={DollarSign} label="Est. MRR" value={data.stats.estimatedMrr} />
+        </div>
+
+        <div className="mb-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#666]">Trialing users</p>
+            <p className="mt-2 text-2xl font-extrabold">{data.stats.trialingUsers}</p>
+          </div>
+          <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#666]">Conversion hint</p>
+            <p className="mt-2 text-sm text-[#888]">
+              {data.stats.userCount > 0
+                ? `${Math.round((data.stats.activeSubscribers / data.stats.userCount) * 100)}% of users are paying subscribers`
+                : "No users yet"}
+            </p>
+          </div>
         </div>
 
         <div className="mb-8 grid gap-6 lg:grid-cols-2">

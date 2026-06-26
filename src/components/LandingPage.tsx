@@ -143,10 +143,11 @@ function LandingContent() {
               alt=""
               fill
               priority
-              className="object-cover opacity-30 blur-sm"
+              className="hero-image object-cover opacity-25 blur-sm"
               sizes="100vw"
             />
           )}
+          <div className="hero-mesh absolute inset-0" aria-hidden />
           <div className="absolute inset-0 bg-gradient-to-r from-[#080808] via-[#080808]/95 to-[#080808]/70" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-transparent to-[#080808]/50" />
         </div>

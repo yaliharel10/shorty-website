@@ -16,6 +16,7 @@ import {
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { FormField, inputClassName } from "@/components/FormField";
+import { PasswordStrengthMeter } from "@/components/PasswordStrengthMeter";
 import { getPlan, trialDaysRemaining } from "@/lib/subscription";
 import { cn } from "@/lib/utils";
 
@@ -132,6 +133,11 @@ function AccountContent() {
   >([]);
   const [historyProgress, setHistoryProgress] = useState<Record<string, number>>({});
 
+  const [autoplayNext, setAutoplayNext] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [reduceMotionPref, setReduceMotionPref] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(false);
+
   useEffect(() => {
     const param = searchParams.get("section");
     if (
@@ -147,11 +153,12 @@ function AccountContent() {
   }, [searchParams]);
 
   const loadAccount = useCallback(async () => {
-    const [accountRes, billingRes, devicesRes, historyRes] = await Promise.all([
+    const [accountRes, billingRes, devicesRes, historyRes, profilesRes] = await Promise.all([
       fetch("/api/account"),
       fetch("/api/account/billing"),
       fetch("/api/account/sessions"),
       fetch("/api/account/history"),
+      fetch("/api/profiles"),
     ]);
 
     const accountData = await accountRes.json();
@@ -171,6 +178,15 @@ function AccountContent() {
       const historyData = await historyRes.json();
       setWatchHistory(historyData.history || []);
       setHistoryProgress(historyData.progress || {});
+    }
+
+    if (profilesRes.ok) {
+      const profilesData = await profilesRes.json();
+      if (profilesData.preferences) {
+        setAutoplayNext(profilesData.preferences.autoplayNext ?? true);
+        setPlaybackSpeed(profilesData.preferences.playbackSpeed ?? 1);
+        setReduceMotionPref(profilesData.preferences.reduceMotionPref ?? false);
+      }
     }
   }, []);
 
@@ -333,6 +349,24 @@ function AccountContent() {
       toast(err instanceof Error ? err.message : "Failed", "error");
     } finally {
       setDevicesLoading(false);
+    }
+  };
+
+  const savePreferences = async () => {
+    setPrefsLoading(true);
+    try {
+      const res = await fetch("/api/profiles", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoplayNext, playbackSpeed, reduceMotionPref }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      toast("Playback preferences saved", "success");
+    } catch (err) {
+      toast(err instanceof Error ? err.message : "Failed to save", "error");
+    } finally {
+      setPrefsLoading(false);
     }
   };
 
@@ -785,6 +819,55 @@ function AccountContent() {
             {section === "security" && (
               <>
                 <section className="rounded-2xl border border-[#222] bg-[#111] p-6">
+                  <h2 className="text-lg font-bold">Playback preferences</h2>
+                  <p className="mt-1 text-sm text-[#666]">
+                    Customize your watching experience
+                  </p>
+                  <div className="mt-4 space-y-4">
+                    <label className="flex items-center justify-between gap-4 text-sm">
+                      <span>Autoplay next episode</span>
+                      <input
+                        type="checkbox"
+                        checked={autoplayNext}
+                        onChange={(e) => setAutoplayNext(e.target.checked)}
+                        className="h-4 w-4 rounded"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-4 text-sm">
+                      <span>Default playback speed</span>
+                      <select
+                        value={playbackSpeed}
+                        onChange={(e) => setPlaybackSpeed(parseFloat(e.target.value))}
+                        className="rounded-lg border border-[#333] bg-[#0a0a0a] px-3 py-1.5 text-sm"
+                      >
+                        {[0.5, 0.75, 1, 1.25, 1.5, 2].map((s) => (
+                          <option key={s} value={s}>
+                            {s}x
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex items-center justify-between gap-4 text-sm">
+                      <span>Reduce motion</span>
+                      <input
+                        type="checkbox"
+                        checked={reduceMotionPref}
+                        onChange={(e) => setReduceMotionPref(e.target.checked)}
+                        className="h-4 w-4 rounded"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={savePreferences}
+                      disabled={prefsLoading}
+                      className="rounded-lg bg-[#ff7a18] px-5 py-2.5 text-sm font-bold hover:bg-[#ff9533] disabled:opacity-50"
+                    >
+                      {prefsLoading ? "Saving..." : "Save preferences"}
+                    </button>
+                  </div>
+                </section>
+
+                <section className="rounded-2xl border border-[#222] bg-[#111] p-6">
                   <h2 className="text-lg font-bold">Password</h2>
                   <form onSubmit={changePassword} className="mt-4 space-y-4">
                     <FormField id="current-password" label="Current password">
@@ -822,6 +905,7 @@ function AccountContent() {
                           )}
                         </button>
                       </div>
+                      <PasswordStrengthMeter password={newPassword} />
                     </FormField>
                     <FormField id="confirm-new-password" label="Confirm new password">
                       <input

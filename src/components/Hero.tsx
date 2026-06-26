@@ -42,6 +42,7 @@ export function Hero({
       </div>
       <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/65 to-black/25" />
       <div className="hero-gradient absolute inset-0" />
+      <div className="hero-mesh absolute inset-0 mix-blend-screen" aria-hidden />
 
       <div className="absolute bottom-0 left-0 right-0 z-20 p-6 pb-10 md:p-10 md:pb-14 lg:p-14 lg:pb-16">
         <div className="mx-auto flex max-w-4xl flex-col gap-4">
@@ -110,6 +111,9 @@ type FilmRowProps = {
   onSeeAll?: () => void;
   seeAllHref?: string;
   onFilmClick: (film: Film) => void;
+  onFilmPlay?: (film: Film) => void;
+  onFilmDetails?: (film: Film) => void;
+  onFilmFavorite?: (film: Film) => void;
 };
 
 export function FilmRow({
@@ -123,6 +127,9 @@ export function FilmRow({
   onSeeAll,
   seeAllHref,
   onFilmClick,
+  onFilmPlay,
+  onFilmDetails,
+  onFilmFavorite,
 }: FilmRowProps) {
   const rowRef = useRef<HTMLDivElement>(null);
 
@@ -190,6 +197,13 @@ export function FilmRow({
               isContinue={continueIds.includes(film.id)}
               isNew={newFilmIds.includes(film.id)}
               progressPercent={watchProgress[film.id] ?? 0}
+              actions={{
+                onPlay: () => (onFilmPlay ?? onFilmClick)(film),
+                onMoreInfo: () => (onFilmDetails ?? onFilmClick)(film),
+                onToggleFavorite: onFilmFavorite
+                  ? () => onFilmFavorite(film)
+                  : undefined,
+              }}
             />
           </button>
         ))}

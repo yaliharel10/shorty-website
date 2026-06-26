@@ -9,6 +9,8 @@ import { apiError, enforceRateLimit, handleApiError } from "@/lib/api-utils";
 import { TRIAL_DAYS } from "@/lib/subscription";
 import { loginSchema, registerSchema } from "@/lib/validation";
 import { userSessionSelect } from "@/lib/user-session";
+import { ensureDefaultProfile } from "@/lib/profiles";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(request: Request) {
   const limited = await enforceRateLimit(request, "auth", 10, 15 * 60 * 1000);
@@ -40,6 +42,14 @@ export async function POST(request: Request) {
           trialEndsAt,
         },
         select: userSessionSelect,
+      });
+
+      await ensureDefaultProfile(user.id);
+      await createNotification(user.id, {
+        type: "welcome",
+        title: "Welcome to Shorty",
+        body: "Your 7-day free trial is active — start watching curated short films.",
+        href: "/browse",
       });
 
       return issueAuthResponse(user, request, {}, "signup");
