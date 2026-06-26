@@ -44,13 +44,14 @@ export async function POST(request: Request) {
         select: userSessionSelect,
       });
 
-      await ensureDefaultProfile(user.id);
-      await createNotification(user.id, {
+      // Don't block the auth response on profile/notification setup.
+      void ensureDefaultProfile(user.id).catch(() => {});
+      void createNotification(user.id, {
         type: "welcome",
         title: "Welcome to Shorty",
         body: "Your 7-day free trial is active — start watching curated short films.",
         href: "/browse",
-      });
+      }).catch(() => {});
 
       return issueAuthResponse(user, request, {}, "signup");
     }

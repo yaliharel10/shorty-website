@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
 import { AuthModal } from "@/components/AuthModal";
@@ -42,11 +41,6 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import type { Film, FilmsResponse, PersonSummary } from "@/types";
-
-const ActivityFeed = dynamic(
-  () => import("@/components/ActivityFeed").then((m) => m.ActivityFeed),
-  { ssr: false }
-);
 
 function HomeContent() {
   const { user, loading: authLoading } = useAuth();
@@ -516,7 +510,6 @@ function HomeContent() {
                 onToggleExpanded={() => setFiltersExpanded((v) => !v)}
               />
             </section>
-            {isBrowseHome && <ActivityFeed />}
             {data?.continueWatching && data.continueWatching.length > 0 && (
               <FilmRow
                 title="Continue Watching"

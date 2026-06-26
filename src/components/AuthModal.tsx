@@ -15,8 +15,6 @@ type AuthModalProps = {
   redirectTo?: string;
 };
 
-const LOGIN_TIMEOUT_MS = loginTimeoutMs();
-
 export function AuthModal({
   open,
   onClose,
@@ -37,7 +35,11 @@ export function AuthModal({
       setIsLogin(defaultMode === "login");
       setError("");
       setLoadingHint("");
-      fetch("/api/health", { cache: "no-store" }).catch(() => {});
+      // Wake server + DB before submit (cold starts on Vercel/Turso can be slow).
+      Promise.all([
+        fetch("/api/health", { cache: "no-store" }),
+        fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" }),
+      ]).catch(() => {});
     }
     return () => {
       abortRef.current?.abort();
@@ -47,21 +49,10 @@ export function AuthModal({
   useEffect(() => {
     if (!loading) return;
     const slow = setTimeout(
-      () => setLoadingHint("Still connecting — first sign-in can take a few seconds"),
-      4000
+      () => setLoadingHint("Still connecting — first sign-in can take up to 30 seconds"),
+      5000
     );
-    const stuck = setTimeout(() => {
-      abortRef.current?.abort();
-      setLoading(false);
-      setLoadingHint("");
-      setError(
-        "Sign-in timed out. Confirm you're on https://shorty-website-five.vercel.app and try again."
-      );
-    }, LOGIN_TIMEOUT_MS + 1000);
-    return () => {
-      clearTimeout(slow);
-      clearTimeout(stuck);
-    };
+    return () => clearTimeout(slow);
   }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -86,7 +77,8 @@ export function AuthModal({
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
-    const timeout = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
+    const timeoutMs = loginTimeoutMs();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const res = await fetch("/api/auth", {
@@ -127,7 +119,9 @@ export function AuthModal({
       return;
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Request timed out — check your connection and try again.");
+        setError(
+          "Sign-in timed out. Wait a few seconds and try again — the first attempt after idle can be slow."
+        );
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
