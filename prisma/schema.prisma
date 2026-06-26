@@ -138,12 +138,15 @@ model Rating {
 }
 
 model ViewEvent {
-  id        String   @id @default(cuid())
-  userId    String?
-  filmId    String
-  createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  film      Film     @relation(fields: [filmId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  userId       String?
+  filmId       String
+  watchSeconds Int      @default(0)
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  film         Film     @relation(fields: [filmId], references: [id], onDelete: Cascade)
+
+  @@index([filmId, createdAt])
 }
 
 model WatchProgress {
@@ -217,4 +220,10 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, read, createdAt])
+}
+
+model PlatformSettings {
+  id                 String   @id @default("default")
+  creatorPoolPercent Float    @default(50)
+  updatedAt          DateTime @updatedAt
 }

@@ -21,6 +21,7 @@ type WatchPayload = {
   film: Film;
   similar: Film[];
   progressPercent: number;
+  viewEventId?: string | null;
   subscriptionRequired?: boolean;
 };
 
@@ -42,6 +43,7 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
   const { toast } = useToast();
   const openedAtRef = useRef(Date.now());
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const viewEventIdRef = useRef<string | null>(null);
   const [data, setData] = useState<WatchPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
@@ -85,6 +87,7 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
           similar: json.similar ?? [],
           progressPercent: progress,
         });
+        viewEventIdRef.current = json.viewEventId ?? null;
         setSubscriptionRequired(false);
         setNextFilm((json.similar ?? [])[0] ?? null);
         trackClientEvent("video_started", { filmId, title: json.film.title });
@@ -149,7 +152,10 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
     if (!data?.film || subscriptionRequired) return;
 
     return () => {
-      if (!user) return;
+      const watchSeconds = Math.min(
+        Math.floor(elapsedSec),
+        data.film.duration * 60
+      );
       const estimated = Math.min(
         95,
         Math.max(
@@ -157,15 +163,26 @@ export function CinemaPlayer({ filmId }: CinemaPlayerProps) {
           Math.round((elapsedSec / durationSec) * 100)
         )
       );
-      if (estimated >= 5) {
-        fetch(`/api/films/${filmId}/progress`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ progressPercent: estimated }),
-        }).catch(() => {});
-        if (estimated >= 95) {
-          trackClientEvent("video_completed", { filmId });
-        }
+
+      const payload: Record<string, unknown> = {};
+      if (viewEventIdRef.current && watchSeconds >= 1) {
+        payload.viewEventId = viewEventIdRef.current;
+        payload.watchSeconds = watchSeconds;
+      }
+      if (user && estimated >= 5) {
+        payload.progressPercent = estimated;
+      }
+      if (Object.keys(payload).length === 0) return;
+
+      fetch(`/api/films/${filmId}/progress`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true,
+      }).catch(() => {});
+
+      if (user && estimated >= 95) {
+        trackClientEvent("video_completed", { filmId });
       }
     };
   }, [data, filmId, subscriptionRequired, user, elapsedSec, durationSec]);

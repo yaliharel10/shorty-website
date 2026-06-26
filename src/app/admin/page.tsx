@@ -54,6 +54,7 @@ const quickLinks = [
   { href: "/admin/collections", label: "Manage Collections", icon: Layers },
   { href: "/admin/users", label: "Manage Users", icon: Users },
   { href: "/admin/subscriptions", label: "Subscriptions", icon: DollarSign },
+  { href: "/admin/revenue", label: "Revenue & Payouts", icon: TrendingUp },
   { href: "/admin/notifications", label: "Send Notifications", icon: Bell },
 ];
 

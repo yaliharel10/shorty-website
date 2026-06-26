@@ -11,6 +11,7 @@ const links = [
   { href: "/admin/collections", label: "Collections" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/subscriptions", label: "Subscriptions" },
+  { href: "/admin/revenue", label: "Revenue" },
   { href: "/admin/notifications", label: "Notifications" },
 ];
 

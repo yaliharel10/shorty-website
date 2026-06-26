@@ -8,8 +8,38 @@ import { trackEvent } from "@/lib/analytics";
 import { z } from "zod";
 
 const progressSchema = z.object({
-  progressPercent: z.number().int().min(0).max(100),
+  progressPercent: z.number().int().min(0).max(100).optional(),
+  watchSeconds: z.number().int().min(0).max(7200).optional(),
+  viewEventId: z.string().min(1).optional(),
 });
+
+async function recordWatchDuration(
+  filmId: string,
+  viewEventId: string,
+  watchSeconds: number
+) {
+  const [event, film] = await Promise.all([
+    prisma.viewEvent.findUnique({
+      where: { id: viewEventId },
+      select: { id: true, filmId: true, watchSeconds: true },
+    }),
+    prisma.film.findUnique({
+      where: { id: filmId },
+      select: { duration: true },
+    }),
+  ]);
+
+  if (!event || event.filmId !== filmId || !film) return;
+
+  const maxSeconds = film.duration * 60;
+  const capped = Math.min(Math.max(watchSeconds, 0), maxSeconds);
+  if (capped <= event.watchSeconds) return;
+
+  await prisma.viewEvent.update({
+    where: { id: viewEventId },
+    data: { watchSeconds: capped },
+  });
+}
 
 export async function POST(
   request: Request,
@@ -19,9 +49,19 @@ export async function POST(
     const limited = await enforceRateLimit(request, "film-progress", 60, 60_000);
     if (limited) return limited;
 
-    const session = await requireSession();
     const { id: filmId } = await params;
-    const { progressPercent } = progressSchema.parse(await request.json());
+    const body = progressSchema.parse(await request.json());
+    const { progressPercent, watchSeconds, viewEventId } = body;
+
+    if (viewEventId && watchSeconds !== undefined) {
+      await recordWatchDuration(filmId, viewEventId, watchSeconds);
+    }
+
+    if (progressPercent === undefined) {
+      return NextResponse.json({ ok: true });
+    }
+
+    const session = await requireSession();
 
     const film = await prisma.film.findUnique({
       where: { id: filmId },

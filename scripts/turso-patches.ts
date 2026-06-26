@@ -76,6 +76,18 @@ export const TURSO_SCHEMA_PATCHES: string[] = [
     CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
   )`,
   `CREATE INDEX IF NOT EXISTS "Notification_userId_read_createdAt_idx" ON "Notification"("userId", "read", "createdAt")`,
+
+  // View duration for payout analytics
+  `ALTER TABLE "ViewEvent" ADD COLUMN "watchSeconds" INTEGER NOT NULL DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS "ViewEvent_filmId_createdAt_idx" ON "ViewEvent"("filmId", "createdAt")`,
+
+  // Admin payout / revenue settings
+  `CREATE TABLE IF NOT EXISTS "PlatformSettings" (
+    "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+    "creatorPoolPercent" REAL NOT NULL DEFAULT 50,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `INSERT OR IGNORE INTO "PlatformSettings" ("id", "creatorPoolPercent", "updatedAt") VALUES ('default', 50, CURRENT_TIMESTAMP)`,
 ];
 
 export function isIgnorablePatchError(message: string) {

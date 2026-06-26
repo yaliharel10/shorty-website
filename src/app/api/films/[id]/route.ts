@@ -86,6 +86,7 @@ export async function GET(
     let userRating: number | null = null;
     let hasWatched = false;
     let progressPercent = 0;
+    let viewEventId: string | null = null;
 
     if (session) {
       const [favorite, rating, priorView, progress] = await Promise.all([
@@ -109,16 +110,15 @@ export async function GET(
       hasWatched = !!priorView;
       progressPercent = progress?.progressPercent ?? 0;
 
-      await prisma.viewEvent.create({
-        data: { filmId: id, userId: session.id },
-      });
       trackEvent("film_viewed", { filmId: id, title: film.title }, session.id);
     } else {
-      await prisma.viewEvent.create({
-        data: { filmId: id, userId: null },
-      });
       trackEvent("film_viewed", { filmId: id, title: film.title });
     }
+
+    const viewEvent = await prisma.viewEvent.create({
+      data: { filmId: id, userId: session?.id ?? null },
+    });
+    viewEventId = viewEvent.id;
 
     const candidates = await prisma.film.findMany({
       where: {
@@ -172,6 +172,7 @@ export async function GET(
       userRating,
       hasWatched,
       progressPercent,
+      viewEventId,
       similar: similar.map((s) => enrichFilmMetadata(s)),
     });
   } catch (error) {
