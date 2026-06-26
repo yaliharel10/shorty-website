@@ -7,8 +7,11 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/films", label: "Films" },
+  { href: "/admin/people", label: "People" },
+  { href: "/admin/collections", label: "Collections" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/subscriptions", label: "Subscriptions" },
+  { href: "/admin/notifications", label: "Notifications" },
 ];
 
 type AdminNavProps = {
@@ -43,7 +46,8 @@ export function AdminNav({
               href={link.href}
               className={cn(
                 "rounded-lg px-3 py-1.5 text-sm transition",
-                pathname === link.href
+                pathname === link.href ||
+                (link.href !== "/admin" && pathname.startsWith(`${link.href}/`))
                   ? "bg-[#ff7a18]/15 font-bold text-[#ff7a18]"
                   : "text-[#888] hover:bg-[#111] hover:text-white"
               )}

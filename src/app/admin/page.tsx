@@ -9,11 +9,13 @@ import {
   Heart,
   Star,
   TrendingUp,
-  ArrowLeft,
   DollarSign,
   UserCheck,
+  Clapperboard,
+  Layers,
+  Bell,
 } from "lucide-react";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
+import { AdminShell } from "@/components/admin/AdminShell";
 
 type Stats = {
   stats: {
@@ -25,263 +27,146 @@ type Stats = {
     activeSubscribers: number;
     trialingUsers: number;
     estimatedMrr: number;
+    personCount: number;
+    collectionCount: number;
   };
-  recentViews: {
-    id: string;
-    createdAt: string;
-    film: { title: string };
-    user: { username: string } | null;
-  }[];
-  topFilms: {
-    id: string;
-    title: string;
-    rating: number;
-    _count: { views: number };
-  }[];
-  recentUsers: {
-    id: string;
-    username: string;
-    email: string;
-    role: string;
-    createdAt: string;
-  }[];
+  recentViews: { id: string; createdAt: string; film: { title: string }; user: { username: string } | null }[];
+  topFilms: { id: string; title: string; rating: number; _count: { views: number } }[];
+  recentUsers: { id: string; username: string; email: string; role: string; createdAt: string }[];
   viewsChart: { date: string; count: number }[];
 };
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-}) {
+function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {
   return (
     <div className="rounded-xl border border-[#222] bg-[#111] p-5">
       <div className="mb-3 flex items-center gap-2 text-[#ff7a18]">
         <Icon className="h-5 w-5" />
-        <span className="text-xs font-bold uppercase tracking-wider text-[#666]">
-          {label}
-        </span>
+        <span className="text-xs font-bold uppercase tracking-wider text-[#666]">{label}</span>
       </div>
       <p className="text-3xl font-extrabold">{value.toLocaleString()}</p>
     </div>
   );
 }
 
-function AdminDashboard() {
-  const { user, loading: authLoading } = useAuth();
+const quickLinks = [
+  { href: "/admin/films", label: "Manage Films", icon: Film },
+  { href: "/admin/people", label: "Manage People", icon: Clapperboard },
+  { href: "/admin/collections", label: "Manage Collections", icon: Layers },
+  { href: "/admin/users", label: "Manage Users", icon: Users },
+  { href: "/admin/subscriptions", label: "Subscriptions", icon: DollarSign },
+  { href: "/admin/notifications", label: "Send Notifications", icon: Bell },
+];
+
+export default function AdminDashboardPage() {
   const [data, setData] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.role !== "admin") {
-      setError("Admin access required");
-      setLoading(false);
-      return;
-    }
     fetch("/api/admin/stats")
-      .then((r) => {
-        if (!r.ok) throw new Error("Forbidden");
-        return r.json();
-      })
+      .then((r) => r.json())
       .then(setData)
-      .catch(() => setError("Failed to load dashboard"))
       .finally(() => setLoading(false));
-  }, [user, authLoading]);
+  }, []);
 
-  if (authLoading || loading) {
+  if (loading || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080808]">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (error || !data) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#080808]">
-        <p className="text-red-400">{error || "Access denied"}</p>
-        <Link href="/" className="text-[#ff7a18] hover:underline">
-          Back to Shorty
-        </Link>
-      </div>
+      <AdminShell title="Admin Dashboard">
+        <div className="flex justify-center py-20">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
+        </div>
+      </AdminShell>
     );
   }
 
   const maxViews = Math.max(...data.viewsChart.map((d) => d.count), 1);
 
   return (
-    <div className="min-h-screen bg-[#080808]">
-      <header className="border-b border-[#222] px-6 py-5">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="flex items-center gap-2 text-sm text-[#888] transition hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Link>
-            <h1 className="text-xl font-bold">
-              Shorty Admin
-            </h1>
-          </div>
-          <nav className="flex gap-4 text-sm">
-            <Link href="/admin" className="font-bold text-[#ff7a18]">
-              Dashboard
-            </Link>
-            <Link href="/admin/films" className="text-[#888] hover:text-white">
-              Films
-            </Link>
-            <Link href="/admin/users" className="text-[#888] hover:text-white">
-              Users
-            </Link>
-            <Link href="/admin/subscriptions" className="text-[#888] hover:text-white">
-              Subscriptions
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <AdminShell title="Admin Dashboard">
+      <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <StatCard icon={Users} label="Users" value={data.stats.userCount} />
+        <StatCard icon={Film} label="Films" value={data.stats.filmCount} />
+        <StatCard icon={Clapperboard} label="People" value={data.stats.personCount} />
+        <StatCard icon={Layers} label="Collections" value={data.stats.collectionCount} />
+        <StatCard icon={Eye} label="Views" value={data.stats.viewCount} />
+        <StatCard icon={Heart} label="Favorites" value={data.stats.favoriteCount} />
+        <StatCard icon={Star} label="Ratings" value={data.stats.ratingCount} />
+        <StatCard icon={UserCheck} label="Subscribers" value={data.stats.activeSubscribers} />
+        <StatCard icon={DollarSign} label="Est. MRR" value={data.stats.estimatedMrr} />
+      </div>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-          <StatCard icon={Users} label="Users" value={data.stats.userCount} />
-          <StatCard icon={Film} label="Films" value={data.stats.filmCount} />
-          <StatCard icon={Eye} label="Views" value={data.stats.viewCount} />
-          <StatCard icon={Heart} label="Favorites" value={data.stats.favoriteCount} />
-          <StatCard icon={Star} label="Ratings" value={data.stats.ratingCount} />
-          <StatCard icon={UserCheck} label="Subscribers" value={data.stats.activeSubscribers} />
-          <StatCard icon={DollarSign} label="Est. MRR" value={data.stats.estimatedMrr} />
-        </div>
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {quickLinks.map(({ href, label, icon: Icon }) => (
+          <Link
+            key={href}
+            href={href}
+            className="flex items-center gap-3 rounded-xl border border-[#222] bg-[#111] p-4 transition hover:border-[#ff7a18]/40 hover:bg-[#151515]"
+          >
+            <Icon className="h-5 w-5 text-[#ff7a18]" />
+            <span className="font-medium">{label}</span>
+          </Link>
+        ))}
+      </div>
 
-        <div className="mb-8 grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#666]">Trialing users</p>
-            <p className="mt-2 text-2xl font-extrabold">{data.stats.trialingUsers}</p>
+      <div className="mb-8 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-[#222] bg-[#111] p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-[#ff7a18]" />
+            <h2 className="font-bold">Views (Last 7 Days)</h2>
           </div>
-          <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#666]">Conversion hint</p>
-            <p className="mt-2 text-sm text-[#888]">
-              {data.stats.userCount > 0
-                ? `${Math.round((data.stats.activeSubscribers / data.stats.userCount) * 100)}% of users are paying subscribers`
-                : "No users yet"}
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-8 grid gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#222] bg-[#111] p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-[#ff7a18]" />
-              <h2 className="font-bold">Views (Last 7 Days)</h2>
-            </div>
-            <div className="flex h-40 items-end gap-2">
-              {data.viewsChart.map((day) => (
-                <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
-                  <div
-                    className="w-full rounded-t bg-[#ff7a18]/80 transition-all"
-                    style={{
-                      height: `${Math.max((day.count / maxViews) * 100, 4)}%`,
-                      minHeight: day.count > 0 ? "8px" : "4px",
-                    }}
-                  />
-                  <span className="text-[10px] text-[#555]">
-                    {day.date.slice(5)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#222] bg-[#111] p-6">
-            <h2 className="mb-4 font-bold">Top Films</h2>
-            <div className="space-y-3">
-              {data.topFilms.map((film, i) => (
+          <div className="flex h-40 items-end gap-2">
+            {data.viewsChart.map((day) => (
+              <div key={day.date} className="flex flex-1 flex-col items-center gap-1">
                 <div
-                  key={film.id}
-                  className="flex items-center justify-between rounded-lg bg-[#1a1a1a] px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-[#ff7a18]">
-                      #{i + 1}
-                    </span>
-                    <span className="font-medium">{film.title}</span>
-                  </div>
-                  <div className="text-sm text-[#888]">
-                    ⭐ {film.rating.toFixed(1)} · {film._count.views} views
-                  </div>
-                </div>
-              ))}
-            </div>
+                  className="w-full rounded-t bg-[#ff7a18]/80"
+                  style={{ height: `${Math.max((day.count / maxViews) * 100, 4)}%`, minHeight: day.count > 0 ? "8px" : "4px" }}
+                />
+                <span className="text-[10px] text-[#555]">{day.date.slice(5)}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-xl border border-[#222] bg-[#111] p-6">
-            <h2 className="mb-4 font-bold">Recent Activity</h2>
-            <div className="space-y-2">
-              {data.recentViews.length === 0 ? (
-                <p className="text-sm text-[#666]">No views yet</p>
-              ) : (
-                data.recentViews.map((view) => (
-                  <div
-                    key={view.id}
-                    className="flex items-center justify-between rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm"
-                  >
-                    <span>
-                      <span className="text-[#ff7a18]">
-                        {view.user?.username || "Guest"}
-                      </span>{" "}
-                      watched {view.film.title}
-                    </span>
-                    <span className="text-xs text-[#555]">
-                      {new Date(view.createdAt).toLocaleString()}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#222] bg-[#111] p-6">
-            <h2 className="mb-4 font-bold">New Users</h2>
-            <div className="space-y-2">
-              {data.recentUsers.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center justify-between rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm"
-                >
-                  <div>
-                    <span className="font-medium">{u.username}</span>
-                    <span className="ml-2 text-xs text-[#555]">{u.email}</span>
-                  </div>
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-bold ${
-                      u.role === "admin"
-                        ? "bg-[#ff7a18]/20 text-[#ff7a18]"
-                        : "bg-[#333] text-[#888]"
-                    }`}
-                  >
-                    {u.role}
-                  </span>
+        <div className="rounded-xl border border-[#222] bg-[#111] p-6">
+          <h2 className="mb-4 font-bold">Top Films</h2>
+          <div className="space-y-3">
+            {data.topFilms.map((film, i) => (
+              <div key={film.id} className="flex items-center justify-between rounded-lg bg-[#1a1a1a] px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-[#ff7a18]">#{i + 1}</span>
+                  <Link href={`/admin/films/${film.id}`} className="font-medium hover:text-[#ff7a18]">
+                    {film.title}
+                  </Link>
                 </div>
-              ))}
-            </div>
+                <span className="text-sm text-[#888]">⭐ {film.rating.toFixed(1)} · {film._count.views} views</span>
+              </div>
+            ))}
           </div>
         </div>
-      </main>
-    </div>
-  );
-}
+      </div>
 
-export default function AdminPage() {
-  return (
-    <AuthProvider>
-      <AdminDashboard />
-    </AuthProvider>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-[#222] bg-[#111] p-6">
+          <h2 className="mb-4 font-bold">Recent Activity</h2>
+          <div className="space-y-2">
+            {data.recentViews.map((view) => (
+              <div key={view.id} className="rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm">
+                <span className="text-[#ff7a18]">{view.user?.username || "Guest"}</span> watched {view.film.title}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-xl border border-[#222] bg-[#111] p-6">
+          <h2 className="mb-4 font-bold">New Users</h2>
+          <div className="space-y-2">
+            {data.recentUsers.map((u) => (
+              <div key={u.id} className="flex items-center justify-between rounded-lg bg-[#1a1a1a] px-4 py-2.5 text-sm">
+                <Link href="/admin/users" className="font-medium hover:text-[#ff7a18]">{u.username}</Link>
+                <span className="text-xs text-[#555]">{u.role}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </AdminShell>
   );
 }

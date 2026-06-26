@@ -1,7 +1,6 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 
@@ -21,6 +20,8 @@ export async function GET() {
       topFilms,
       recentUsers,
       viewsByDay,
+      personCount,
+      collectionCount,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.film.count(),
@@ -69,6 +70,8 @@ export async function GET() {
         },
         select: { createdAt: true },
       }),
+      prisma.person.count(),
+      prisma.collection.count(),
     ]);
 
     const dayMap: Record<string, number> = {};
@@ -92,6 +95,8 @@ export async function GET() {
         activeSubscribers,
         trialingUsers,
         estimatedMrr: activeSubscribers * 4.99,
+        personCount,
+        collectionCount,
       },
       recentViews,
       topFilms,
@@ -102,44 +107,6 @@ export async function GET() {
       })),
     });
   } catch {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-}
-
-const filmSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().min(1),
-  category: z.string().min(1),
-  posterUrl: z.string().url(),
-  videoUrl: z.string().url(),
-  duration: z.number().int().positive().optional(),
-  year: z.number().int().optional(),
-  featured: z.boolean().optional(),
-});
-
-export async function POST(request: Request) {
-  try {
-    await requireAdmin();
-    const data = filmSchema.parse(await request.json());
-
-    const film = await prisma.film.create({
-      data: {
-        title: data.title,
-        description: data.description,
-        category: data.category,
-        posterUrl: data.posterUrl,
-        videoUrl: data.videoUrl,
-        duration: data.duration ?? 15,
-        year: data.year ?? new Date().getFullYear(),
-        featured: data.featured ?? false,
-      },
-    });
-
-    return NextResponse.json({ film });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors[0].message }, { status: 400 });
-    }
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 }

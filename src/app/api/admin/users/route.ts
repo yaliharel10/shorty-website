@@ -67,6 +67,10 @@ export async function PATCH(request: Request) {
     const patch: Record<string, unknown> = {};
 
     if (updates.role) patch.role = updates.role;
+    if (updates.username !== undefined) patch.username = updates.username;
+    if (updates.email !== undefined) patch.email = updates.email.toLowerCase();
+    if (updates.displayName !== undefined) patch.displayName = updates.displayName;
+    if (updates.photoUrl !== undefined) patch.photoUrl = updates.photoUrl;
 
     if (clearSubscription) {
       patch.subscriptionTier = "none";

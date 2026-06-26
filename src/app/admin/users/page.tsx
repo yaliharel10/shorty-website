@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Trash2, Shield, User as UserIcon, Pencil } from "lucide-react";
-import { AuthProvider, useAuth } from "@/components/AuthProvider";
-import { AdminNav } from "@/components/AdminNav";
+import { useAuth } from "@/components/AuthProvider";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { Modal } from "@/components/Modal";
 import { FormField, inputClassName } from "@/components/FormField";
 import { getPlan } from "@/lib/subscription";
@@ -12,7 +11,9 @@ import { getPlan } from "@/lib/subscription";
 type AdminUser = {
   id: string;
   username: string;
+  displayName: string | null;
   email: string;
+  photoUrl: string | null;
   role: string;
   subscriptionTier: string;
   subscriptionStatus: string | null;
@@ -23,11 +24,10 @@ type AdminUser = {
   _count: { favorites: number; ratings: number; views: number };
 };
 
-function AdminUsersContent() {
-  const { user, loading: authLoading } = useAuth();
+function AdminUsersInner() {
+  const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [editing, setEditing] = useState<AdminUser | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -39,14 +39,8 @@ function AdminUsersContent() {
   };
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!user || user.role !== "admin") {
-      setError("Admin access required");
-      setLoading(false);
-      return;
-    }
     loadUsers();
-  }, [user, authLoading]);
+  }, []);
 
   const toggleRole = async (id: string, currentRole: string) => {
     const newRole = currentRole === "admin" ? "user" : "admin";
@@ -90,6 +84,10 @@ function AdminUsersContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: editing.id,
+        username: form.get("username"),
+        email: form.get("email"),
+        displayName: (form.get("displayName") as string) || null,
+        photoUrl: (form.get("photoUrl") as string) || null,
         subscriptionTier,
         subscriptionStatus: subscriptionStatus || null,
         subscriptionEndsAt: subscriptionEndsAt
@@ -106,131 +104,118 @@ function AdminUsersContent() {
     loadUsers();
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#080808]">
+      <div className="flex justify-center py-20">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-[#ff7a18] border-t-transparent" />
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#080808]">
-        <p className="text-red-400">{error}</p>
-        <Link href="/" className="text-[#ff7a18]">Back to Shorty</Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#080808]">
-      <AdminNav title="Manage Users & Accounts" backLabel="Admin" />
-
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="overflow-x-auto rounded-xl border border-[#222]">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#111] text-xs uppercase tracking-wider text-[#666]">
-              <tr>
-                <th className="px-6 py-4">User</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Subscription</th>
-                <th className="px-6 py-4">Access</th>
-                <th className="px-6 py-4">Activity</th>
-                <th className="px-6 py-4">Joined</th>
-                <th className="px-6 py-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((u) => {
-                const plan = getPlan(u.subscriptionTier);
-                return (
-                  <tr key={u.id} className="border-t border-[#222] bg-[#0a0a0a]">
-                    <td className="px-6 py-4">
-                      <p className="font-medium">{u.username}</p>
-                      <p className="text-xs text-[#666]">{u.email}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold ${
-                          u.role === "admin"
-                            ? "bg-[#ff7a18]/20 text-[#ff7a18]"
-                            : "bg-[#333] text-[#888]"
-                        }`}
-                      >
-                        {u.role === "admin" ? (
-                          <Shield className="h-3 w-3" />
-                        ) : (
-                          <UserIcon className="h-3 w-3" />
-                        )}
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-xs">
+    <>
+      <div className="overflow-x-auto rounded-xl border border-[#222]">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-[#111] text-xs uppercase tracking-wider text-[#666]">
+            <tr>
+              <th className="px-6 py-4">User</th>
+              <th className="px-6 py-4">Role</th>
+              <th className="px-6 py-4">Subscription</th>
+              <th className="px-6 py-4">Access</th>
+              <th className="px-6 py-4">Activity</th>
+              <th className="px-6 py-4">Joined</th>
+              <th className="px-6 py-4">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => {
+              const plan = getPlan(u.subscriptionTier);
+              return (
+                <tr key={u.id} className="border-t border-[#222] bg-[#0a0a0a]">
+                  <td className="px-6 py-4">
+                    <p className="font-medium">{u.username}</p>
+                    <p className="text-xs text-[#666]">{u.email}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-bold ${
+                        u.role === "admin"
+                          ? "bg-[#ff7a18]/20 text-[#ff7a18]"
+                          : "bg-[#333] text-[#888]"
+                      }`}
+                    >
                       {u.role === "admin" ? (
-                        <span className="text-[#666]">Admin bypass</span>
+                        <Shield className="h-3 w-3" />
                       ) : (
-                        <>
-                          <span className="capitalize font-medium">{u.subscriptionTier}</span>
-                          {plan && u.subscriptionStatus === "active" && (
-                            <span className="block text-[#555]">
-                              ${plan.price.toFixed(2)}/mo
-                            </span>
-                          )}
-                          {u.trialEndsAt && new Date(u.trialEndsAt) > new Date() && (
-                            <span className="block text-[#ff7a18]">Trial active</span>
-                          )}
-                        </>
+                        <UserIcon className="h-3 w-3" />
                       )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-bold ${
-                          u.hasStreamingAccess
-                            ? "bg-green-900/30 text-green-400"
-                            : "bg-red-900/30 text-red-400"
-                        }`}
+                      {u.role}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-xs">
+                    {u.role === "admin" ? (
+                      <span className="text-[#666]">Admin bypass</span>
+                    ) : (
+                      <>
+                        <span className="capitalize font-medium">{u.subscriptionTier}</span>
+                        {plan && u.subscriptionStatus === "active" && (
+                          <span className="block text-[#555]">
+                            ${plan.price.toFixed(2)}/mo
+                          </span>
+                        )}
+                        {u.trialEndsAt && new Date(u.trialEndsAt) > new Date() && (
+                          <span className="block text-[#ff7a18]">Trial active</span>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-bold ${
+                        u.hasStreamingAccess
+                          ? "bg-green-900/30 text-green-400"
+                          : "bg-red-900/30 text-red-400"
+                      }`}
+                    >
+                      {u.hasStreamingAccess ? "Yes" : "No"}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-xs text-[#666]">
+                    {u._count.views} views · {u._count.favorites} favs
+                  </td>
+                  <td className="px-6 py-4 text-xs text-[#555]">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditing(u)}
+                        className="rounded border border-[#333] px-2 py-1 text-xs hover:bg-[#222]"
+                        title="Edit account"
                       >
-                        {u.hasStreamingAccess ? "Yes" : "No"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-xs text-[#666]">
-                      {u._count.views} views · {u._count.favorites} favs
-                    </td>
-                    <td className="px-6 py-4 text-xs text-[#555]">
-                      {new Date(u.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setEditing(u)}
-                          className="rounded border border-[#333] px-2 py-1 text-xs hover:bg-[#222]"
-                          title="Edit account"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          onClick={() => toggleRole(u.id, u.role)}
-                          className="rounded border border-[#333] px-2 py-1 text-xs hover:bg-[#222]"
-                        >
-                          {u.role === "admin" ? "Demote" : "Promote"}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(u.id)}
-                          disabled={u.id === user?.id}
-                          className="rounded border border-red-900/50 px-2 py-1 text-xs text-red-400 hover:bg-red-900/20 disabled:opacity-30"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </main>
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={() => toggleRole(u.id, u.role)}
+                        className="rounded border border-[#333] px-2 py-1 text-xs hover:bg-[#222]"
+                      >
+                        {u.role === "admin" ? "Demote" : "Promote"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u.id)}
+                        disabled={u.id === user?.id}
+                        className="rounded border border-red-900/50 px-2 py-1 text-xs text-red-400 hover:bg-red-900/20 disabled:opacity-30"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <Modal
         open={!!editing}
@@ -240,7 +225,18 @@ function AdminUsersContent() {
       >
         {editing && (
           <form onSubmit={saveUser} className="space-y-4">
-            <p className="text-sm text-[#888]">{editing.email}</p>
+            <FormField id="edit-username" label="Username">
+              <input id="edit-username" name="username" defaultValue={editing.username} className={inputClassName} />
+            </FormField>
+            <FormField id="edit-email" label="Email">
+              <input id="edit-email" name="email" type="email" defaultValue={editing.email} className={inputClassName} />
+            </FormField>
+            <FormField id="edit-display" label="Display name">
+              <input id="edit-display" name="displayName" defaultValue={editing.displayName || ""} className={inputClassName} />
+            </FormField>
+            <FormField id="edit-photo" label="Avatar URL">
+              <input id="edit-photo" name="photoUrl" defaultValue={editing.photoUrl || ""} className={inputClassName} />
+            </FormField>
 
             <FormField id="edit-tier" label="Subscription tier">
               <select
@@ -317,14 +313,14 @@ function AdminUsersContent() {
           </form>
         )}
       </Modal>
-    </div>
+    </>
   );
 }
 
 export default function AdminUsersPage() {
   return (
-    <AuthProvider>
-      <AdminUsersContent />
-    </AuthProvider>
+    <AdminShell title="Manage Users & Accounts">
+      <AdminUsersInner />
+    </AdminShell>
   );
 }

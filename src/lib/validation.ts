@@ -68,6 +68,10 @@ export const changePasswordSchema = z.object({
 export const adminUserUpdateSchema = z.object({
   id: z.string().min(1),
   role: z.enum(["user", "admin"]).optional(),
+  username: z.string().min(3).max(20).optional(),
+  email: z.string().email().optional(),
+  displayName: z.string().max(50).nullable().optional(),
+  photoUrl: z.string().url().nullable().optional(),
   subscriptionTier: z.enum(["none", "basic", "standard", "premium"]).optional(),
   subscriptionStatus: z.enum(["active", "canceled"]).nullable().optional(),
   subscriptionEndsAt: z.string().datetime().nullable().optional(),
