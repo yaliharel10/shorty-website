@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createToken, sessionCookieOptions, verifyPassword } from "@/lib/auth";
 import { enforceRateLimit } from "@/lib/api-utils";
+import { logger } from "@/lib/logger";
 import { loginSchema } from "@/lib/validation";
 import { toPublicUser, userSessionSelect } from "@/lib/user-session";
 import { trackEvent } from "@/lib/analytics";
@@ -58,7 +60,13 @@ export async function POST(request: Request) {
     const response = NextResponse.redirect(destination, 303);
     response.cookies.set(sessionCookieOptions(token));
     return response;
-  } catch {
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return redirectWithError(request, "invalid_credentials");
+    }
+    logger.error("signin_failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return redirectWithError(request, "server_error");
   }
 }

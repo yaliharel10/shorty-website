@@ -131,12 +131,7 @@ export function AuthModal({
       size="sm"
     >
       {isLogin ? (
-        <form
-          action="/api/auth/signin"
-          method="POST"
-          className="flex flex-col gap-4"
-          onSubmit={() => setLoading(true)}
-        >
+        <form action="/api/auth/signin" method="POST" className="flex flex-col gap-4">
           <input type="hidden" name="redirect" value={redirectTo} />
 
           <FormField id="auth-identifier" label="Username or email">
@@ -147,7 +142,6 @@ export function AuthModal({
               autoComplete="username"
               className={inputClassName}
               placeholder="Username or email"
-              disabled={loading}
             />
           </FormField>
 
@@ -162,7 +156,6 @@ export function AuthModal({
                 autoComplete="current-password"
                 className={inputClassName}
                 placeholder="Password"
-                disabled={loading}
               />
               <button
                 type="button"
@@ -197,10 +190,9 @@ export function AuthModal({
 
           <button
             type="submit"
-            disabled={loading}
-            className="rounded-lg bg-[#ff7a18] py-3 text-sm font-bold transition hover:bg-[#ff9533] disabled:opacity-50"
+            className="rounded-lg bg-[#ff7a18] py-3 text-sm font-bold transition hover:bg-[#ff9533]"
           >
-            {loading ? "Signing in..." : "Sign In"}
+            Sign In
           </button>
         </form>
       ) : (
