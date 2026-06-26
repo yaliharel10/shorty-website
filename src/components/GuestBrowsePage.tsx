@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { AuthModal } from "@/components/AuthModal";
+import { AuthModal, authErrorMessage } from "@/components/AuthModal";
 import { Hero, FilmRow } from "@/components/Hero";
 import { FilmCard } from "@/components/FilmCard";
 import { DemoAccessBar } from "@/components/DemoAccessBar";
@@ -213,7 +213,13 @@ export function GuestBrowseContent() {
       )}
 
       <SiteFooter />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} defaultMode="register" redirectTo="/browse" />
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        defaultMode={searchParams.get("signin") === "1" ? "login" : "register"}
+        redirectTo="/browse"
+        initialError={authErrorMessage(searchParams.get("error"))}
+      />
     </div>
   );
 }

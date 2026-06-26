@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
-import { AuthModal } from "@/components/AuthModal";
+import { AuthModal, authErrorMessage } from "@/components/AuthModal";
 import { ProfileModal } from "@/components/ProfileModal";
 import { FilmModal } from "@/components/FilmModal";
 import { Navbar } from "@/components/Navbar";
@@ -672,6 +672,7 @@ function HomeContent() {
       <AuthModal
         open={authOpen}
         onClose={() => setAuthOpen(false)}
+        initialError={authErrorMessage(searchParams.get("error"))}
       />
       <ProfileModal
         open={profileOpen}

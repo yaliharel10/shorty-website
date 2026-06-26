@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/AuthProvider";
 import { ToastProvider, useToast } from "@/components/Toast";
-import { AuthModal } from "@/components/AuthModal";
+import { AuthModal, authErrorMessage } from "@/components/AuthModal";
 import { FilmModal } from "@/components/FilmModal";
 import { PricingPlans } from "@/components/PricingPlans";
 import { DemoAccessBar } from "@/components/DemoAccessBar";
@@ -412,6 +412,7 @@ function LandingContent() {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         defaultMode={authMode}
+        initialError={authErrorMessage(searchParams.get("error"))}
       />
     </div>
   );
