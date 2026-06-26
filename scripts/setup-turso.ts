@@ -13,47 +13,107 @@ function parseSqlStatements(sql: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+function tursoDatabaseUrl() {
+  const url = process.env.TURSO_DATABASE_URL?.trim();
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
+  if (!url || !authToken) return null;
+  const join = url.includes("?") ? "&" : "?";
+  return `${url}${join}authToken=${authToken}`;
+}
+
+function generateSchemaSql(mode: "incremental" | "empty") {
+  if (mode === "incremental") {
+    const databaseUrl = tursoDatabaseUrl();
+    if (!databaseUrl) throw new Error("Turso credentials missing");
+
+    return execSync(
+      `npx prisma migrate diff --from-url "${databaseUrl}" --to-schema-datamodel prisma/schema.prisma --script`,
+      {
+        encoding: "utf-8",
+        env: { ...process.env, DATABASE_URL: databaseUrl },
+      }
+    );
+  }
+
+  return execSync(
+    "npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script",
+    { encoding: "utf-8" }
+  );
+}
+
+function isIgnorableSqlError(message: string) {
+  return (
+    message.includes("already exists") ||
+    message.includes("duplicate column") ||
+    message.includes("UNIQUE constraint failed") ||
+    message.includes("no such table") // DROP on already-removed legacy tables
+  );
+}
+
+async function applyStatements(client: ReturnType<typeof createClient>, statements: string[]) {
+  let applied = 0;
+  let skipped = 0;
+
+  for (const statement of statements) {
+    try {
+      await client.execute(`${statement};`);
+      applied += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (isIgnorableSqlError(message)) {
+        skipped += 1;
+        continue;
+      }
+      console.error("Failed statement:", statement.slice(0, 300));
+      throw error;
+    }
+  }
+
+  console.log(`Applied ${applied} statements (${skipped} skipped as already applied).`);
+}
+
+async function tableExists(client: ReturnType<typeof createClient>, name: string) {
+  const result = await client.execute({
+    sql: "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+    args: [name],
+  });
+  return result.rows.length > 0;
+}
+
 async function main() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
+  const url = process.env.TURSO_DATABASE_URL?.trim();
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
 
   if (!url || !authToken) {
     console.log("No Turso credentials — skipping remote schema setup (local SQLite build).");
     return;
   }
 
-  console.log("Generating schema SQL from Prisma...");
-  const sql = execSync(
-    "npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script",
-    { encoding: "utf-8" }
-  );
+  const client = createClient({ url, authToken });
+  const hasUserTable = await tableExists(client, "User");
+
+  let sql: string;
+  if (hasUserTable) {
+    console.log("Existing Turso database detected — applying incremental schema diff...");
+    try {
+      sql = generateSchemaSql("incremental");
+    } catch (error) {
+      console.warn("Incremental diff failed, falling back to from-empty script:", error);
+      sql = generateSchemaSql("empty");
+    }
+  } else {
+    console.log("Empty Turso database — applying full schema...");
+    sql = generateSchemaSql("empty");
+  }
 
   const statements = parseSqlStatements(sql);
   if (statements.length === 0) {
-    throw new Error("No SQL statements generated — cannot set up Turso schema");
+    console.log("Turso schema is already up to date.");
+    return;
   }
-
-  const client = createClient({ url, authToken });
 
   console.log(`Applying ${statements.length} statements to Turso...`);
-
-  for (const statement of statements) {
-    try {
-      await client.execute(`${statement};`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (
-        message.includes("already exists") ||
-        message.includes("duplicate column") ||
-        message.includes("UNIQUE constraint failed")
-      ) {
-        continue;
-      }
-      console.error("Failed statement:", statement.slice(0, 200));
-      throw error;
-    }
-  }
-
+  await applyStatements(client, statements);
   console.log("Turso schema ready.");
 }
 

@@ -44,7 +44,14 @@ export function GuestBrowseContent() {
   useEffect(() => {
     fetch("/api/films/catalog")
       .then((r) => r.json())
-      .then(setData)
+      .then((json) => {
+        if (json.error) {
+          setData(null);
+          return;
+        }
+        setData(json);
+      })
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
@@ -140,7 +147,7 @@ export function GuestBrowseContent() {
                 onFilmClick={(f) => router.push(`/films/${f.id}`)}
               />
             )}
-            {data?.byCategory.map((row) => (
+            {data?.byCategory?.map((row) => (
               <FilmRow
                 key={row.category}
                 title={row.label}
@@ -171,9 +178,25 @@ export function GuestBrowseContent() {
             </section>
 
             <section className="mx-4 mt-16 rounded-2xl border border-[#222] bg-[#111] p-8 text-center md:mx-8 lg:mx-12">
+              {!data ? (
+                <>
+                  <h2 className="text-2xl font-bold">Catalog temporarily unavailable</h2>
+                  <p className="mx-auto mt-2 max-w-md text-[#888]">
+                    We&apos;re updating the film library. Please try again in a moment.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="mt-6 rounded-lg border border-[#333] px-8 py-3 text-sm font-bold hover:border-[#ff7a18]"
+                  >
+                    Retry
+                  </button>
+                </>
+              ) : (
+                <>
               <h2 className="text-2xl font-bold">Unlock the full library</h2>
               <p className="mx-auto mt-2 max-w-md text-[#888]">
-                {data?.filmCount ?? 0}+ curated shorts. 7-day free trial, plans from $1.99/mo.
+                {data.filmCount}+ curated shorts. 7-day free trial, plans from $1.99/mo.
               </p>
               <button
                 type="button"
@@ -182,6 +205,8 @@ export function GuestBrowseContent() {
               >
                 Get started
               </button>
+                </>
+              )}
             </section>
           </main>
         </>
